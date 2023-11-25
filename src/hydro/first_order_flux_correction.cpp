@@ -74,38 +74,115 @@ void Hydro::FirstOrderFluxCorrection(Real delta, Real gam0, Real gam1, Real beta
   Coordinates *pco = pmb->pcoord;
   AthenaArray<Real> &bcc_ = pf->bcc;
 
+
   AthenaArray<Real> &e3x1_ = pmb->pfield->e3_x1f, &e2x1_ = pmb->pfield->e2_x1f;
   AthenaArray<Real> &e1x2_ = pmb->pfield->e1_x2f, &e3x2_ = pmb->pfield->e3_x2f;
   AthenaArray<Real> &e1x3_ = pmb->pfield->e1_x3f, &e2x3_ = pmb->pfield->e2_x3f;
+
+
+  AthenaArray<Real> &area = face_area_, &len = edge_length_, &len_p1 = edge_length_p1_;
+
   // assuming cartesian
   Real dtodx1 = beta_dt/pco->dx1v(is);
   Real dtodx2 = beta_dt/pco->dx2v(js);
   Real dtodx3 = beta_dt/pco->dx3v(ks);
   pf->CalculateCellCenteredField(pf->b1,bcctest_,pco,is,ie,js,je,ks,ke);
+
+  // add the first component
+
   for (int k=ks; k<=ke; ++k) {
     for (int j=js; j<=je; ++j) {
 #pragma omp simd
       for (int i=is; i<=ie; ++i) {
-        Real b1old = bcctest_(IB1,k,j,i);
-        Real b2old = bcctest_(IB2,k,j,i);
-        Real b3old = bcctest_(IB3,k,j,i);
-        bcctest_(IB1,k,j,i) = gam0*bcc_(IB1,k,j,i) + gam1*(b1old + delta*bcc_(IB1,k,j,i));
-        bcctest_(IB2,k,j,i) = gam0*bcc_(IB2,k,j,i) + gam1*(b2old + delta*bcc_(IB2,k,j,i));
-        bcctest_(IB3,k,j,i) = gam0*bcc_(IB3,k,j,i) + gam1*(b3old + delta*bcc_(IB3,k,j,i));
+        bcctest_(IB1,k,j,i) = gam0*bcc_(IB1,k,j,i) + gam1*(bcctest_(IB1,k,j,i)
+                             + delta*bcc_(IB1,k,j,i));
+        bcctest_(IB2,k,j,i) = gam0*bcc_(IB2,k,j,i) + gam1*(bcctest_(IB2,k,j,i)
+                             + delta*bcc_(IB2,k,j,i));
+        bcctest_(IB3,k,j,i) = gam0*bcc_(IB3,k,j,i) + gam1*(bcctest_(IB3,k,j,i)
+                             + delta*bcc_(IB3,k,j,i));
 
-        bcctest_(IB2,k,j,i) += dtodx1*(e3x1_(k,j,i+1) - e3x1_(k,j,i));
-        bcctest_(IB3,k,j,i) -= dtodx1*(e2x1_(k,j,i+1) - e2x1_(k,j,i));
-        if (pmb->pmy_mesh->f2) {
-          bcctest_(IB1,k,j,i) -= dtodx2*(e3x2_(k,j+1,i) - e3x2_(k,j,i));
-          bcctest_(IB3,k,j,i) += dtodx2*(e1x2_(k,j+1,i) - e1x2_(k,j,i));
+      }
+    }
+  }
+
+  // for IB1
+  for (int k=ks; k<=ke; ++k) {
+    for (int j=js; j<=je; ++j) {
+      // add curl(E) in 2D and 3D problem
+      if (pmb->pmy_mesh->f2) {
+        pmb->pcoord->Face1Area(k,j,is,ie+1,area);
+        pmb->pcoord->Edge3Length(k,j  ,is,ie+1,len);
+        pmb->pcoord->Edge3Length(k,j+1,is,ie+1,len_p1);
+#pragma omp simd
+        for (int i=is; i<=ie; ++i) {
+          bcctest_(IB1,k,j,i) -=
+              (beta_dt/area(i))*(len_p1(i)*e3x2_(k,j+1,i)
+                                   - len(i)*e3x2_(k,j,i));
         }
+
         if (pmb->pmy_mesh->f3) {
-          bcctest_(IB1,k,j,i) += dtodx3*(e2x3_(k+1,j,i) - e2x3_(k,j,i));
-          bcctest_(IB2,k,j,i) -= dtodx3*(e1x3_(k+1,j,i) - e1x3_(k,j,i));
+          pmb->pcoord->Edge2Length(k  ,j,is,ie+1,len);
+          pmb->pcoord->Edge2Length(k+1,j,is,ie+1,len_p1);
+#pragma omp simd
+          for (int i=is; i<=ie+1; ++i) {
+            bcctest_(IB1,k,j,i) +=
+                (beta_dt/area(i))*(len_p1(i)*e2x3_(k+1,j,i)
+                                      - len(i)*e2x3_(k,j,i));
+          }
         }
       }
     }
   }
+
+
+
+  // for IB2
+  for (int k=ks; k<=ke; ++k) {
+    for (int j=js; j<=je; ++j) {
+      pmb->pcoord->Face2Area(k,j,is,ie,area);
+      pmb->pcoord->Edge3Length(k,j,is,ie+1,len);
+#pragma omp simd
+      for (int i=is; i<=ie; ++i) {
+        bcctest_(IB2,k,j,i) += (beta_dt/area(i))*(len(i+1)*e3x1_(k,j,i+1)
+                                                  - len(i)*e3x1_(k,j,i));
+      }
+      if(pmb->pmy_mesh->f3){
+        pmb->pcoord->Edge1Length(k  ,j,is,ie,len);
+        pmb->pcoord->Edge1Length(k+1,j,is,ie,len_p1);
+#pragma omp simd
+        for (int i=is; i<=ie; ++i) {
+          bcctest_(IB2,k,j,i) -=
+              (beta_dt/area(i))*(len_p1(i)*e1x3_(k+1,j,i)
+                                  - len(i)*e1x3_(k,j,i));
+        }
+      }
+    }
+  }
+
+
+  // for IB3
+
+  for (int k=ks; k<=ke; ++k) {
+    for (int j=js; j<=je; ++j) {
+      pmb->pcoord->Face3Area(k,j,is,ie,area);
+      pmb->pcoord->Edge2Length(k,j,is,ie+1,len);
+#pragma omp simd
+      for (int i=is; i<=ie; ++i) {
+        bcctest_(IB3,k,j,i) -= (beta_dt/area(i))*(len(i+1)*e2x1_(k,j,i+1) - len(i)*e2x1_(k,j,i));
+      }
+      if (pmb->pmy_mesh->f2) {
+        pmb->pcoord->Edge1Length(k,j  ,is,ie,len);
+        pmb->pcoord->Edge1Length(k,j+1,is,ie,len_p1);
+#pragma omp simd
+        for (int i=is; i<=ie; ++i) {
+          bcctest_(IB3,k,j,i) +=
+              (beta_dt/area(i))*(len_p1(i)*e1x2(k,j+1,i) - len(i)*e1x2(k,j,i));
+        }
+      }
+    }
+  }
+
+
 #endif
 
   // test only active zones
