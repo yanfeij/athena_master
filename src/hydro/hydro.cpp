@@ -53,7 +53,8 @@ Hydro::Hydro(MeshBlock *pmb, ParameterInput *pin) :
                   AthenaArray<Real>::DataStatus::empty)),
     hbvar(pmb, &u, &coarse_cons_, flux, HydroBoundaryQuantity::cons),
     hsrc(this, pin),
-    hdif(this, pin) {
+    hdif(this, pin),
+    fofc_enabled(pin->GetOrAddBoolean("hydro", "fofc", "false")) {
   int nc1 = pmb->ncells1, nc2 = pmb->ncells2, nc3 = pmb->ncells3;
   Mesh *pm = pmy_block->pmy_mesh;
 
@@ -142,6 +143,11 @@ Hydro::Hydro(MeshBlock *pmb, ParameterInput *pin) :
     // 1D scratch arrays
     laplacian_l_fc_.NewAthenaArray(nc1);
     laplacian_r_fc_.NewAthenaArray(nc1);
+  }
+
+  if (fofc_enabled) {
+    utest_.NewAthenaArray(NHYDRO, nc3, nc2, nc1);
+    if (MAGNETIC_FIELDS_ENABLED) bcctest_.NewAthenaArray(NFIELD, nc3, nc2, nc1);
   }
 
   UserTimeStep_ = pmb->pmy_mesh->UserTimeStep_;

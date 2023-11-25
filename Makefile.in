@@ -39,6 +39,7 @@ SRC_FILES := $(wildcard src/*.cpp) \
 	     src/eos/$(EOS_FILE) \
 	     src/eos/eos_high_order.cpp \
 	     src/eos/eos_scalars.cpp \
+             src/eos/eos.cpp \
 	     $(wildcard src/fft/*.cpp) \
 	     $(wildcard src/field/*.cpp) \
 	     $(wildcard src/field/field_diffusion/*.cpp) \
@@ -53,6 +54,7 @@ SRC_FILES := $(wildcard src/*.cpp) \
              $(wildcard src/cr/*.cpp) \
              $(wildcard src/cr/integrators/*.cpp) \
 	     src/hydro/rsolvers/$(RSOLVER_DIR)$(RSOLVER_FILE) \
+             src/hydro/rsolvers/$(RSOLVER_DIR)llf_single_state.cpp \
 	     $(wildcard src/inputs/*.cpp) \
 	     $(wildcard src/mesh/*.cpp) \
 	     $(wildcard src/multigrid/*.cpp) \

@@ -604,6 +604,14 @@ TimeIntegratorTaskList::TimeIntegratorTaskList(ParameterInput *pin, Mesh *pm) {
         }
       }
     }
+
+    if (pm->fofc_enabled) {
+      std::stringstream msg;
+      msg << "### FATAL ERROR " << std::endl
+          << "FOFC is not supported for the rk3 integrator" << std::endl;
+      ATHENA_ERROR(msg);
+    }
+
   } else if (integrator == "rk4") {
     //! \note `integorator == "rk4"`
     //! - RK4()4[2S] from Table 2 of Ketcheson (2010)
@@ -734,6 +742,14 @@ TimeIntegratorTaskList::TimeIntegratorTaskList(ParameterInput *pin, Mesh *pm) {
       }
       stage_wghts[nstages-1].ebeta = 1.0;
     }
+
+    if (pm->fofc_enabled) {
+      std::stringstream msg;
+      msg << "### FATAL ERROR " << std::endl
+          << "FOFC is not supported for the rk4 integrator" << std::endl;
+      ATHENA_ERROR(msg);
+    }
+
   } else if (integrator == "ssprk5_4") {
     //! \note `integrator == "ssprk5_4"`
     //! - SSPRK (5,4): Gottlieb (2009) section 3.1; between eq 3.3 and 3.4
@@ -882,6 +898,14 @@ TimeIntegratorTaskList::TimeIntegratorTaskList(ParameterInput *pin, Mesh *pm) {
       }
       stage_wghts[nstages-1].ebeta = 1.0;
     }
+
+    if (pm->fofc_enabled) {
+      std::stringstream msg;
+      msg << "### FATAL ERROR " << std::endl
+          << "FOFC is not supported for the ssprk5_4 integrator" << std::endl;
+      ATHENA_ERROR(msg);
+    }
+
   } else {
     std::stringstream msg;
     msg << "### FATAL ERROR in TimeIntegratorTaskList constructor" << std::endl
@@ -1697,6 +1721,14 @@ TaskStatus TimeIntegratorTaskList::CalculateHydroFlux(MeshBlock *pmb, int stage)
       } else {
         phydro->CalculateFluxes(phydro->w,  pfield->b,  pfield->bcc, pmb->precon->xorder);
       }
+
+      if (phydro->fofc_enabled) {
+        phydro->FirstOrderFluxCorrection(stage_wghts[stage-1].delta,
+                                   stage_wghts[stage-1].gamma_1,
+                                   stage_wghts[stage-1].gamma_2,
+                                   stage_wghts[stage-1].beta);
+      }
+
     }
     return TaskStatus::next;
   }

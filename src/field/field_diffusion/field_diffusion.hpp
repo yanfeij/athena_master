@@ -65,6 +65,7 @@ class FieldDiffusion {
   void ClearEMF(EdgeField &e);
   void CalcCurrent(FaceField &b);
   void AddPoyntingFlux (FaceField &p_src);
+  void AddPoyntingFluxSingleCell(FaceField &p_src, int i, int j, int k);
 
   // functions to calculate diffusivities and timesteps
   void SetDiffusivity(const AthenaArray<Real> &w, const AthenaArray<Real> &bcc);
