@@ -80,7 +80,8 @@ void Hydro::FirstOrderFluxCorrection(Real delta, Real gam0, Real gam1, Real beta
   AthenaArray<Real> &e1x3_ = pmb->pfield->e1_x3f, &e2x3_ = pmb->pfield->e2_x3f;
 
 
-  AthenaArray<Real> &area = face_area_, &len = edge_length_, &len_p1 = edge_length_p1_;
+  AthenaArray<Real> &area = pf->face_area_, &len = pf->edge_length_,
+                    &len_p1 = pf->edge_length_p1_;
 
   // assuming cartesian
   Real dtodx1 = beta_dt/pco->dx1v(is);
@@ -176,7 +177,7 @@ void Hydro::FirstOrderFluxCorrection(Real delta, Real gam0, Real gam1, Real beta
 #pragma omp simd
         for (int i=is; i<=ie; ++i) {
           bcctest_(IB3,k,j,i) +=
-              (beta_dt/area(i))*(len_p1(i)*e1x2(k,j+1,i) - len(i)*e1x2(k,j,i));
+              (beta_dt/area(i))*(len_p1(i)*e1x2_(k,j+1,i) - len(i)*e1x2_(k,j,i));
         }
       }
     }
