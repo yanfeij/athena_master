@@ -18,6 +18,7 @@
 #include "../mesh/mesh.hpp"
 #include "../nr_radiation/radiation.hpp"
 #include "im_rad_task_list.hpp"
+#include "../hydro/hydro.hpp"
 
 #ifdef OPENMP_PARALLEL
 #include <omp.h>
@@ -88,6 +89,7 @@ void IMRadTaskList::DoTaskListOneStage(Real wght) {
 
 TaskStatus IMRadTaskList::PhysicalBoundary(MeshBlock *pmb) {
   pmb->pnrrad->rad_bvar.var_cc = &(pmb->pnrrad->ir);
+  pmb->phydro->hbvar.SwapHydroQuantity(pmb->phydro->w, HydroBoundaryQuantity::prim);
   pmb->pbval->ApplyPhysicalBoundaries(time, dt, pmb->pbval->bvars_main_int);
   return TaskStatus::success;
 }
