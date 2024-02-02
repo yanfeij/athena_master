@@ -62,7 +62,7 @@ void RadBoundaryVariable::ReflectInnerX1(Real time, Real dt, int il, int jl, int
           if (noct > 2) {
             CopyIntensity(iri, iro, 2, 3, n_ang);
           }
-          if (noct > 3) {
+          if (noct > 4) {
             CopyIntensity(iri, iro, 4, 5, n_ang);
             CopyIntensity(iri, iro, 6, 7, n_ang);
           }
@@ -98,7 +98,7 @@ void RadBoundaryVariable::ReflectOuterX1(
           if (noct > 2) {
             CopyIntensity(iri, iro, 2, 3, n_ang);
           }
-          if (noct > 3) {
+          if (noct > 4) {
             CopyIntensity(iri, iro, 4, 5, n_ang);
             CopyIntensity(iri, iro, 6, 7, n_ang);
           }
@@ -133,7 +133,7 @@ void RadBoundaryVariable::ReflectInnerX2(Real time, Real dt, int il, int iu, int
           CopyIntensity(iri, iro, 0, 2, n_ang);
           CopyIntensity(iri, iro, 1, 3, n_ang);
 
-          if (noct > 3) {
+          if (noct > 4) {
             CopyIntensity(iri, iro, 4, 6, n_ang);
             CopyIntensity(iri, iro, 5, 7, n_ang);
           }
@@ -170,7 +170,7 @@ void RadBoundaryVariable::ReflectOuterX2(Real time, Real dt, int il, int iu, int
           CopyIntensity(iri, iro, 0, 2, n_ang);
           CopyIntensity(iri, iro, 1, 3, n_ang);
 
-          if (noct > 3) {
+          if (noct > 4) {
             CopyIntensity(iri, iro, 4, 6, n_ang);
             CopyIntensity(iri, iro, 5, 7, n_ang);
           }
