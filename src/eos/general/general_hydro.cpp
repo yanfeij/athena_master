@@ -26,6 +26,7 @@
 #include "../../athena_arrays.hpp"
 #include "../../field/field.hpp"
 #include "../../mesh/mesh.hpp"
+#include "../../hydro/hydro.hpp"
 #include "../../parameter_input.hpp"
 #include "../eos.hpp"
 
@@ -33,7 +34,7 @@
 
 EquationOfState::EquationOfState(MeshBlock *pmb, ParameterInput *pin) :
   ptable{pmb->pmy_mesh->peos_table},
-  pmy_block_{pmb},
+  pmy_block_{pmb}, bookkeeping(false),
   gamma_{pin->GetOrAddReal("hydro", "gamma", 2.)},
   density_floor_{pin->GetOrAddReal("hydro", "dfloor", std::sqrt(1024*float_min))},
   scalar_floor_{pin->GetOrAddReal("hydro", "sfloor", std::sqrt(1024*float_min))},
@@ -53,6 +54,14 @@ EquationOfState::EquationOfState(MeshBlock *pmb, ParameterInput *pin) :
     energy_floor_ = pressure_floor_/(pin->GetOrAddReal("hydro", "gamma", 2.) - 1.);
     pin->SetReal("hydro", "efloor", energy_floor_);
   }
+
+      if (pmb->phydro->fofc_enabled)
+        fofc_.NewAthenaArray(pmb->ncells3, pmb->ncells2, pmb->ncells1);
+      if (neighbor_flooring_) {
+        nbavg_d_.NewAthenaArray(pmb->ncells3, pmb->ncells2, pmb->ncells1);
+        nbavg_p_.NewAthenaArray(pmb->ncells3, pmb->ncells2, pmb->ncells1);
+      }
+
   if (EOS_TABLE_ENABLED) {
     if (!ptable) {
       std::stringstream msg;
