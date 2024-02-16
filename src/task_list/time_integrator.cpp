@@ -1655,6 +1655,10 @@ void TimeIntegratorTaskList::StartupTaskList(MeshBlock *pmb, int stage) {
       pmb->pnrrad->ir1.ZeroClear();
       if (integrator == "ssprk5_4")
         pmb->pnrrad->ir2 = pmb->pnrrad->ir;
+
+      // apply user defined frequency grid
+      if(pmb->pnrrad->nfreq > 1)
+        pmb->pnrrad->UserFrequency(pmb->pnrrad);
     }
 
     if (CR_ENABLED) {

@@ -236,6 +236,9 @@ TaskStatus IMRadITTaskList::CheckResidual(MeshBlock *pmb) {
 }
 
 void IMRadITTaskList::StartupTaskList(MeshBlock *pmb) {
+  if(pmb->pnrrad->nfreq > 1)
+      pmb->pnrrad->UserFrequency(pmb->pnrrad);
+
   pmb->pnrrad->rad_bvar.StartReceiving(BoundaryCommSubset::radiation);
   if (pmy_mesh->shear_periodic) {
     pmb->pnrrad->rad_bvar.StartReceivingShear(BoundaryCommSubset::radiation);
