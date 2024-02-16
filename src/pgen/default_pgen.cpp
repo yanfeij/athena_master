@@ -108,3 +108,11 @@ void __attribute__((weak)) MeshBlock::UserWorkBeforeOutput(ParameterInput *pin) 
   // do nothing
   return;
 }
+
+
+void __attribute__((weak)) Mesh::InitAfterRestart(ParameterInput *pin)
+{
+  // do nothing
+
+  return;
+}

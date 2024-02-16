@@ -422,6 +422,9 @@ int main(int argc, char *argv[]) {
   //=== Step 8. === START OF MAIN INTEGRATION LOOP =======================================
   // For performance, there is no error handler protecting this step (except outputs)
 
+  if(res_flag == 1)
+    pmesh->InitAfterRestart(pinput);
+
   if (Globals::my_rank == 0) {
     std::cout << "\nSetup complete, entering main loop...\n" << std::endl;
   }
