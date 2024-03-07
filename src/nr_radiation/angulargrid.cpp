@@ -41,7 +41,15 @@ void NRRadiation::AngularGrid(int angle_flag, int nmu) {
   AthenaArray<Real> pmat, pinv, wpf;
   AthenaArray<int> plab, pl;
 
+  if(polar_angle){
+    msg << "### FATAL ERROR in function [InitialAngle]" << std::endl
+        << "Polar angle cannot be used with: "<< angle_flag << "\n ";
+        throw std::runtime_error(msg.str().c_str());
+  }
+
   int n_ang = nang/noct;
+
+
 
   mu2tmp.NewAthenaArray(nmu);
   mutmp.NewAthenaArray(n_ang,3);
@@ -169,6 +177,7 @@ void NRRadiation::AngularGrid(int angle_flag, int nmu) {
       // for spherical coordinate system, it should be r-theta-phi
       for (int n2=0; n2<n2z; ++n2) {
         for (int n1=0; n1<n1z; ++n1) {
+
           for (int j=0; j<2; ++j) {
             for (int k=0; k<2; ++k) {
               int l=2*j+k;
@@ -187,6 +196,7 @@ void NRRadiation::AngularGrid(int angle_flag, int nmu) {
               }
             }
           }
+
         }
       }
       // for the angular weight
@@ -498,6 +508,10 @@ void NRRadiation::AngularGrid(int angle_flag, int nzeta, int npsi) {
             //x,k,j,i,n
             mu(0,0,0,i,n) = coszeta_v(n);
          }
+         if(polar_angle){
+           mu(0,0,0,i,2*nzeta) = 1.0;
+           mu(0,0,0,i,2*nzeta+1) = -1.0;
+         }
       }
     } else if (ndim == 2) {
       for (int j=0; j<n2z; ++j) {
@@ -515,6 +529,12 @@ void NRRadiation::AngularGrid(int angle_flag, int nzeta, int npsi) {
                   mu(axisx,0,j,i,ang_num) = -sinzeta_v;
               }
             }
+            if(polar_angle){
+              mu(axisz,0,j,i,nang-2) = 1.0;
+              mu(axisz,0,j,i,nang-1) = -1.0;
+              mu(axisx,0,j,i,nang-2) = 0.0;
+              mu(axisx,0,j,i,nang-1) = 0.0;
+            }
           } else {// the case in x -y plane
             if (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0) {
               // in spherical polar, 2D, we still need 3D angular grid
@@ -528,10 +548,24 @@ void NRRadiation::AngularGrid(int angle_flag, int nzeta, int npsi) {
                   mu(axisz,0,j,i,ang_num) = coszeta_v(n);
                 }
               }
+              if(polar_angle){
+                mu(axisz,0,j,i,nang-2) = 1.0;
+                mu(axisz,0,j,i,nang-1) = -1.0;
+                mu(axisx,0,j,i,nang-2) = 0.0;
+                mu(axisx,0,j,i,nang-1) = 0.0;
+                mu(axisy,0,j,i,nang-2) = 0.0;
+                mu(axisy,0,j,i,nang-1) = 0.0;
+              }
             } else {
               for (int m=0; m<2*npsi; ++m) {
                 mu(0,0,j,i,m) = cos(psi_v(m));
                 mu(1,0,j,i,m) = sin(psi_v(m));
+              }
+              if(polar_angle){
+                mu(0,0,j,i,nang-2) = 1.0;
+                mu(0,0,j,i,nang-1) = -1.0;
+                mu(1,0,j,i,nang-2) = 0.0;
+                mu(1,0,j,i,nang-1) = 0.0;
               }
             }
           }
@@ -543,6 +577,7 @@ void NRRadiation::AngularGrid(int angle_flag, int nzeta, int npsi) {
       for (int k=0; k<n3z; ++k) {
         for (int j=0; j<n2z; ++j) {
           for (int i=0; i<n1z; ++i) {
+
             for (int n=0; n<2*nzeta; ++n) {
               for (int m=0; m<2*npsi; ++m) {
                 int ang_num = n*(2*npsi)+m;
@@ -553,6 +588,15 @@ void NRRadiation::AngularGrid(int angle_flag, int nzeta, int npsi) {
                 mu(axisz,k,j,i,ang_num) = coszeta_v(n);
               }
             }
+            if(polar_angle){
+                mu(axisz,k,j,i,nang-2) = 1.0;
+                mu(axisz,k,j,i,nang-1) = -1.0;
+                mu(axisx,k,j,i,nang-2) = 0.0;
+                mu(axisx,k,j,i,nang-1) = 0.0;
+                mu(axisy,k,j,i,nang-2) = 0.0;
+                mu(axisy,k,j,i,nang-1) = 0.0;
+            }
+
           }
         }
       }
