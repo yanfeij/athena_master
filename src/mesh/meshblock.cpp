@@ -349,6 +349,7 @@ MeshBlock::MeshBlock(int igid, int ilid, Mesh *pm, ParameterInput *pin,
     // total number of azimuthal angles covering 0 to pi
     int npsi = pin->GetOrAddInteger("radiation","npsi",0);
     int angle_flag = pin->GetOrAddInteger("radiation","angle_flag",0);
+    int polar_angle = pin->GetOrAddInteger("radiation","polar_angle",0);
     int n_ang=1; // number of angles per octant and number of octant
     int noct=2;
 
@@ -392,6 +393,8 @@ MeshBlock::MeshBlock(int igid, int ilid, Mesh *pm, ParameterInput *pin,
       }
     }
     nfre_ang = n_ang * noct * nfreq;
+    if(polar_angle)
+      nfre_ang = (n_ang * noct + 2) * nfreq;
   }
 
   // Reconstruction (constructor may implicitly depend on Coordinates)
