@@ -34,8 +34,14 @@ class RadBoundaryVariable : public CellCenteredBoundaryVariable {
   void SendFluxCorrection() override;
   bool ReceiveFluxCorrection() override;
 
-
   void SetBoundaries() override;
+
+  void ApplyRadPhysicalBoundaries(const Real time, const Real dt);
+  void SetRadPhysicalFunctions(
+    MeshBlock *pmb, Coordinates *pco, Real time, Real dt,
+    int il, int iu, int jl, int ju, int kl, int ku, int ngh,
+    BoundaryFace face, AthenaArray<Real> &prim,
+    FaceField &b, AthenaArray<Real> &ir);
 
 
   // function for shearing box

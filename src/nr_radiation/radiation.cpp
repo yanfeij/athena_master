@@ -307,7 +307,8 @@ NRRadiation::NRRadiation(MeshBlock *pmb, ParameterInput *pin):
   rad_bvar.bvar_index = pmb->pbval->bvars.size();
   pmb->pbval->bvars.push_back(&rad_bvar);
   // enroll radiation boundary value object
-  if (NR_RADIATION_ENABLED || IM_RADIATION_ENABLED) {
+  // boundary for implicit radiation is handled separately
+  if (NR_RADIATION_ENABLED) {
     pmb->pbval->bvars_main_int.push_back(&rad_bvar);
   }
 

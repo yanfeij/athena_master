@@ -94,6 +94,12 @@ TaskStatus IMRadTaskList::PhysicalBoundary(MeshBlock *pmb) {
   return TaskStatus::success;
 }
 
+TaskStatus IMRadTaskList::RadPhysicalBoundary(MeshBlock *pmb) {
+  pmb->pnrrad->rad_bvar.ApplyRadPhysicalBoundaries(time,dt);
+  return TaskStatus::success;
+}
+
+
 
 TaskStatus IMRadTaskList::ProlongateBoundary(MeshBlock *pmb) {
   pmb->pbval->ProlongateBoundaries(time, dt, pmb->pbval->bvars_main_int);

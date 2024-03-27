@@ -83,7 +83,7 @@ void IMRadITTaskList::AddTask(const TaskID& id, const TaskID& dep) {
   } else if (id == RAD_PHYS_BND) {
     task_list_[ntasks].TaskFunc=
         static_cast<TaskStatus (IMRadTaskList::*)(MeshBlock*)>
-        (&IMRadITTaskList::PhysicalBoundary);
+        (&IMRadITTaskList::RadPhysicalBoundary);
   } else if (id == PRLN_RAD_BND) {
     task_list_[ntasks].TaskFunc=
         static_cast<TaskStatus (IMRadTaskList::*)(MeshBlock*)>
