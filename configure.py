@@ -13,6 +13,7 @@
 #   --eos=xxx            use xxx as the equation of state
 #   --flux=xxx           use xxx as the Riemann solver
 #   --nghost=xxx         set NGHOST=xxx
+#   --ndustfluids=xxx    set NDUSTFLUIDS=xxx
 #   --nscalars=xxx       set NSCALARS=xxx
 #   -eos_table           enable EOS table
 #   -b                   enable magnetic fields
@@ -108,6 +109,14 @@ parser.add_argument('--flux',
 parser.add_argument('--nghost',
                     default='2',
                     help='set number of ghost zones')
+
+
+# --ndustfluids=[value] argument
+parser.add_argument('--ndustfluids',
+                    default='0',
+                    help='set number of dust fluids')
+
+
 
 # --nscalars=[value] argument
 parser.add_argument('--nscalars',
@@ -416,6 +425,10 @@ definitions['RSOLVER'] = makefile_options['RSOLVER_FILE'] = args['flux']
 
 # --nghost=[value] argument
 definitions['NUMBER_GHOST_CELLS'] = args['nghost']
+
+
+# --ndustfluids=[value] argument
+definitions['NUMBER_DUST_FLUIDS'] = args['ndustfluids']
 
 # --nscalars=[value] argument
 definitions['NUMBER_PASSIVE_SCALARS'] = args['nscalars']
@@ -902,6 +915,7 @@ output_config('Linker flags', makefile_options['LINKER_FLAGS'] + ' '
               + makefile_options['LIBRARY_FLAGS'], flog)
 output_config('Floating-point precision', ('single' if args['float'] else 'double'), flog)
 output_config('Number of ghost cells', args['nghost'], flog)
+output_config('Number of dust fluids', args['ndustfluids'], flog)
 output_config('MPI parallelism', ('ON' if args['mpi'] else 'OFF'), flog)
 output_config('OpenMP parallelism', ('ON' if args['omp'] else 'OFF'), flog)
 output_config('FFT', ('ON' if args['fft'] else 'OFF'), flog)

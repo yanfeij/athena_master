@@ -59,7 +59,6 @@ def main(**kwargs):
             level = kwargs['level']
         data = athena_read.athdf(input_filename, quantities=kwargs['quantities'],
                                  level=level, subsample=subsample)
-
         # Determine new grid size
         nx1 = attrs['RootGridSize'][0] * 2**level if attrs['MeshBlockSize'][0] > 1 else 1
         nx2 = attrs['RootGridSize'][1] * 2**level if attrs['MeshBlockSize'][1] > 1 else 1
@@ -67,9 +66,9 @@ def main(**kwargs):
 
         # Create new HDF5 file
         with h5py.File(output_filename, 'w') as f:
-
             # Write attributes
-            for key, val in attributes:
+            for key in attrs:
+                val = attrs[key]
                 if key == 'RootGridX1' or key == 'RootGridX2' or key == 'RootGridX3':
                     if val[2] > 0.0:
                         value = [val[0], val[1], val[2]**(1.0/2.0**level)]
@@ -109,7 +108,7 @@ def main(**kwargs):
                 f.create_dataset(dataset_name, dtype='>f4',
                                  shape=(num_vars, 1, nx3, nx2, nx1))
                 for var_num in range(num_vars):
-                    variable_name = f.attrs['VariableNames'][var_num + var_offset]
+                    variable_name = f.attrs['VariableNames'][var_num + var_offset].decode()
                     f[dataset_name][var_num, 0, :, :, :] = data[variable_name]
                 var_offset += num_vars
 

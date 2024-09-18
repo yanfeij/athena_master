@@ -1,0 +1,19 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.8	//
+CELLCENTER_DIFFUSION_HPP_	cell_center_diffusions.hpp	/^#define CELLCENTER_DIFFUSION_HPP_$/;"	d
+CalculateDiffusiveMomentum	calculate_cellcenter_diffusion.cpp	/^void DustFluidsCellCenterDiffusion::CalculateDiffusiveMomentum(const AthenaArray<Real> &prim_df,$/;"	f	class:DustFluidsCellCenterDiffusion
+DustFluidsCellCenterDiffusion	cell_center_diffusions.cpp	/^DustFluidsCellCenterDiffusion::DustFluidsCellCenterDiffusion(MeshBlock *pmb,$/;"	f	class:DustFluidsCellCenterDiffusion
+DustFluidsCellCenterDiffusion	cell_center_diffusions.hpp	/^class DustFluidsCellCenterDiffusion {$/;"	c
+coarse_diff_mom_cc_	cell_center_diffusions.hpp	/^  AthenaArray<Real> coarse_diff_mom_cc_; \/\/ used in mesh refinement$/;"	m	class:DustFluidsCellCenterDiffusion
+diff_cc_flux	cell_center_diffusions.hpp	/^  AthenaArray<Real> diff_cc_flux[3];     \/\/ face-averaged flux vector$/;"	m	class:DustFluidsCellCenterDiffusion
+diff_mom_cc	cell_center_diffusions.hpp	/^  AthenaArray<Real> diff_mom_cc;$/;"	m	class:DustFluidsCellCenterDiffusion
+diffccbvar	cell_center_diffusions.cpp	/^  diffccbvar(pmb, &diff_mom_cc, &coarse_diff_mom_cc_, diff_cc_flux,$/;"	f
+diffccbvar	cell_center_diffusions.hpp	/^  DustDiffusionBoundaryVariable diffccbvar;$/;"	m	class:DustFluidsCellCenterDiffusion
+pco_	cell_center_diffusions.hpp	/^  Coordinates *pco_;            \/\/ ptr to coordinates class$/;"	m	class:DustFluidsCellCenterDiffusion
+pdf	cell_center_diffusions.cpp	/^  pmy_dustfluids_(pdf), pmb_(pmb), pco_(pmb->pcoord),$/;"	v
+pmb_	cell_center_diffusions.hpp	/^  MeshBlock   *pmb_;            \/\/ ptr to meshblock containing this DustFluidsDiffusion$/;"	m	class:DustFluidsCellCenterDiffusion
+pmy_dustfluids_	cell_center_diffusions.hpp	/^  DustFluids  *pmy_dustfluids_; \/\/ ptr to DustFluids containing this DustFluidsDiffusion$/;"	m	class:DustFluidsCellCenterDiffusion

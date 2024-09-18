@@ -1,0 +1,32 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.8	//
+AddDustFluidsDiffusionFlux	dustfluids_diffusion.cpp	/^void DustFluidsDiffusion::AddDustFluidsDiffusionFlux(AthenaArray<Real> *flux_diff,$/;"	f	class:DustFluidsDiffusion
+CalcDustDiffusivityCoeff_	dustfluids_diffusion.hpp	/^  DustDiffusionCoeffFunc CalcDustDiffusivityCoeff_;$/;"	m	class:DustFluidsDiffusion
+CalcDustFluidsDiffusionFlux	dustfluids_diffusion.cpp	/^void DustFluidsDiffusion::CalcDustFluidsDiffusionFlux($/;"	f	class:DustFluidsDiffusion
+ClearDustFluidsFlux	dustfluids_diffusion.cpp	/^void DustFluidsDiffusion::ClearDustFluidsFlux(AthenaArray<Real> *flux_diff) {$/;"	f	class:DustFluidsDiffusion
+ConstantDustDiffusivity	diffusivity_dustfluids.cpp	/^void DustFluidsDiffusion::ConstantDustDiffusivity(DustFluids *pdf,$/;"	f	class:DustFluidsDiffusion
+DUSTFLUIDS_DIFFUSION_HPP_	dustfluids_diffusion.hpp	/^#define DUSTFLUIDS_DIFFUSION_HPP_$/;"	d
+Diffusion_Flag	dustfluids_diffusion.hpp	/^  bool Diffusion_Flag;               \/\/ true or false, the flag of inviscid dust fluids$/;"	m	class:DustFluidsDiffusion
+DustFluidsConcentrationDiffusiveFlux	concentration_diffusion.cpp	/^void DustFluidsDiffusion::DustFluidsConcentrationDiffusiveFlux(const AthenaArray<Real> &prim_df,$/;"	f	class:DustFluidsDiffusion
+DustFluidsDiffusion	dustfluids_diffusion.cpp	/^DustFluidsDiffusion::DustFluidsDiffusion(DustFluids *pdf, ParameterInput *pin) :$/;"	f	class:DustFluidsDiffusion
+DustFluidsDiffusion	dustfluids_diffusion.hpp	/^class DustFluidsDiffusion {$/;"	c
+DustFluidsMomentumDiffusiveFlux	momentum_diffusion.cpp	/^void DustFluidsDiffusion::DustFluidsMomentumDiffusiveFlux(const AthenaArray<Real> &prim_df,$/;"	f	class:DustFluidsDiffusion
+Momentum_Diffusion_Flag	dustfluids_diffusion.hpp	/^  bool Momentum_Diffusion_Flag;      \/\/ true or false, the flag of momentum diffusion of dust fluids$/;"	m	class:DustFluidsDiffusion
+NewDiffusionDt	dustfluids_diffusion.cpp	/^Real DustFluidsDiffusion::NewDiffusionDt() {$/;"	f	class:DustFluidsDiffusion
+VanLeerLimiter	momentum_diffusion.cpp	/^Real DustFluidsDiffusion::VanLeerLimiter(const Real a, const Real b) {$/;"	f	class:DustFluidsDiffusion
+ZeroDustDiffusivity	diffusivity_dustfluids.cpp	/^void DustFluidsDiffusion::ZeroDustDiffusivity(AthenaArray<Real> &dust_diffusivity,$/;"	f	class:DustFluidsDiffusion
+diff_tot_	dustfluids_diffusion.hpp	/^  AthenaArray<Real> diff_tot_;$/;"	m	class:DustFluidsDiffusion
+dustfluids_diffusion_defined	dustfluids_diffusion.hpp	/^  bool dustfluids_diffusion_defined; \/\/ true or false$/;"	m	class:DustFluidsDiffusion
+dustfluids_diffusion_flux	dustfluids_diffusion.hpp	/^  AthenaArray<Real> dustfluids_diffusion_flux[3];$/;"	m	class:DustFluidsDiffusion
+dx1_	dustfluids_diffusion.hpp	/^  AthenaArray<Real> dx1_, dx2_, dx3_; \/\/ scratch arrays used in NewTimeStep$/;"	m	class:DustFluidsDiffusion
+dx2_	dustfluids_diffusion.hpp	/^  AthenaArray<Real> dx1_, dx2_, dx3_; \/\/ scratch arrays used in NewTimeStep$/;"	m	class:DustFluidsDiffusion
+dx3_	dustfluids_diffusion.hpp	/^  AthenaArray<Real> dx1_, dx2_, dx3_; \/\/ scratch arrays used in NewTimeStep$/;"	m	class:DustFluidsDiffusion
+eddy_time_	dustfluids_diffusion.hpp	/^  Real              eddy_time_;       \/\/ The eddy timescale (turn over time of eddy) at r0$/;"	m	class:DustFluidsDiffusion
+pco_	dustfluids_diffusion.hpp	/^  Coordinates       *pco_;            \/\/ ptr to coordinates class$/;"	m	class:DustFluidsDiffusion
+pmb_	dustfluids_diffusion.hpp	/^  MeshBlock         *pmb_;            \/\/ ptr to meshblock containing this DustFluidsDiffusion$/;"	m	class:DustFluidsDiffusion
+pmy_dustfluids_	dustfluids_diffusion.hpp	/^  DustFluids        *pmy_dustfluids_; \/\/ ptr to DustFluids containing this DustFluidsDiffusion$/;"	m	class:DustFluidsDiffusion
+r0_	dustfluids_diffusion.hpp	/^  Real              r0_;              \/\/ The length unit of radial direction in disk problem$/;"	m	class:DustFluidsDiffusion
