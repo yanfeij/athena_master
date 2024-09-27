@@ -1955,20 +1955,32 @@ TaskStatus TimeIntegratorTaskList::ClearAllBoundary(MeshBlock *pmb, int stage) {
 TaskStatus TimeIntegratorTaskList::CalculateHydroFlux(MeshBlock *pmb, int stage) {
   Hydro *phydro = pmb->phydro;
   Field *pfield = pmb->pfield;
+  DustFluids *pdf = pmb->pdustfluids;
 
   if (stage <= nstages) {
     if (stage_wghts[stage-1].main_stage) {
-      if ((integrator == "vl2") && (stage-stage_wghts[0].orbital_stage == 1)) {
-        phydro->CalculateFluxes(phydro->w,  pfield->b,  pfield->bcc, 1);
+      if (NDUSTFLUIDS > 0) {
+        if ((integrator == "vl2") && (stage-stage_wghts[0].orbital_stage == 1) &&
+              (pdf->dfdrag.drag_method == "explicit")) {
+          phydro->CalculateFluxes(phydro->w, pfield->b, pfield->bcc, 1);
+        } else {
+          phydro->CalculateFluxes(phydro->w, pfield->b,  pfield->bcc, pmb->precon->xorder);
+        }
       } else {
-        phydro->CalculateFluxes(phydro->w,  pfield->b,  pfield->bcc, pmb->precon->xorder);
-      }
 
-      if (phydro->fofc_enabled) {
-        phydro->FirstOrderFluxCorrection(stage_wghts[stage-1].delta,
+
+        if ((integrator == "vl2") && (stage-stage_wghts[0].orbital_stage == 1)) {
+          phydro->CalculateFluxes(phydro->w,  pfield->b,  pfield->bcc, 1);
+        } else {
+          phydro->CalculateFluxes(phydro->w,  pfield->b,  pfield->bcc, pmb->precon->xorder);
+        }
+
+        if (phydro->fofc_enabled) {
+          phydro->FirstOrderFluxCorrection(stage_wghts[stage-1].delta,
                                    stage_wghts[stage-1].gamma_1,
                                    stage_wghts[stage-1].gamma_2,
                                    stage_wghts[stage-1].beta);
+        }
       }
 
     }
@@ -2490,6 +2502,12 @@ TaskStatus TimeIntegratorTaskList::Primitives(MeshBlock *pmb, int stage) {
     pmb->peos->ConservedToPrimitive(ph->u, ph->w, pf->b,
                                     ph->w1, pf->bcc, pmb->pcoord,
                                     il, iu, jl, ju, kl, ku);
+
+    if (NDUSTFLUIDS > 0) {
+      pmb->peos->DustFluidsConservedToPrimitive(pdf->df_cons, pdf->dfccdif.diff_mom_cc,
+                                  pdf->df_prim, pdf->df_prim1, pmb->pcoord, il, iu, jl, ju, kl, ku);
+    }
+
     if (pmb->porb->orbital_advection_defined) {
       pmb->porb->ResetOrbitalSystemConversionFlag();
     }
@@ -2518,6 +2536,12 @@ TaskStatus TimeIntegratorTaskList::Primitives(MeshBlock *pmb, int stage) {
       // Swap Hydro and (possibly) passive scalar quantities in BoundaryVariable interface
       // from conserved to primitive formulations:
       ph->hbvar.SwapHydroQuantity(ph->w1, HydroBoundaryQuantity::prim);
+
+      if (NDUSTFLUIDS > 0) {
+        if (pdf->dust_xorder == 4)
+          pdf->dfbvar.SwapDustFluidsQuantity(pdf->df_prim1, DustFluidsBoundaryQuantity::prim_df);
+      }
+
       if (NSCALARS > 0) {
         ps->sbvar.var_cc = &(ps->r);
         if (pmb->pmy_mesh->multilevel) {
@@ -2529,6 +2553,12 @@ TaskStatus TimeIntegratorTaskList::Primitives(MeshBlock *pmb, int stage) {
       pmb->peos->ConservedToPrimitiveCellAverage(ph->u, ph->w, pf->b,
                                                  ph->w1, pf->bcc, pmb->pcoord,
                                                  il, iu, jl, ju, kl, ku);
+
+      if (NDUSTFLUIDS > 0) {
+        pmb->peos->DustFluidsConservedToPrimitiveCellAverage(
+            pdf->df_cons, pdf->df_prim, pdf->df_prim1, pmb->pcoord, il, iu, jl, ju, kl, ku);
+      }
+
       if (NSCALARS > 0) {
         pmb->peos->PassiveScalarConservedToPrimitiveCellAverage(
             ps->s, ps->r, ps->r, pmb->pcoord, il, iu, jl, ju, kl, ku);
@@ -2536,6 +2566,8 @@ TaskStatus TimeIntegratorTaskList::Primitives(MeshBlock *pmb, int stage) {
     }
     // swap AthenaArray data pointers so that w now contains the updated w_out
     ph->w.SwapAthenaArray(ph->w1);
+    if (NDUSTFLUIDS > 0)
+      pdf->df_prim.SwapAthenaArray(pdf->df_prim1);
     // r1/r_old for GR is currently unused:
     // ps->r.SwapAthenaArray(ps->r1);
     return TaskStatus::success;
@@ -2558,6 +2590,8 @@ TaskStatus TimeIntegratorTaskList::PhysicalBoundary(MeshBlock *pmb, int stage) {
     // Swap Hydro and (possibly) passive scalar quantities in BoundaryVariable interface
     // from conserved to primitive formulations:
     ph->hbvar.SwapHydroQuantity(ph->w, HydroBoundaryQuantity::prim);
+    if (NDUSTFLUIDS > 0)
+      pdf->dfbvar.SwapDustFluidsQuantity(pdf->df_prim, DustFluidsBoundaryQuantity::prim_df);
     if (NSCALARS > 0) {
       ps->sbvar.var_cc = &(ps->r);
       if (pmb->pmy_mesh->multilevel) {
@@ -2827,8 +2861,9 @@ TaskStatus TimeIntegratorTaskList::SendHydroOrbital(MeshBlock *pmb, int stage) {
     OrbitalAdvection *porb = pmb->porb;
     if (!porb->orbital_advection_active) return TaskStatus::success;
     Hydro *ph = pmb->phydro;
+    DustFluids *pdf = pmb->pdustfluids;
     PassiveScalars *ps = pmb->pscalars;
-    porb->SetOrbitalAdvectionCC(ph->u, ps->s);
+    porb->SetOrbitalAdvectionCC(ph->u, pdf->df_cons, ps->s);
     porb->orb_bc->SendBoundaryBuffersCC();
     return TaskStatus::success;
   }
@@ -2907,6 +2942,412 @@ TaskStatus TimeIntegratorTaskList::CalculateFieldOrbital(MeshBlock *pmb, int sta
     porb->CalculateOrbitalAdvectionFC(dt, pf->e);
     pf->CT(1.0, pf->b);
     return TaskStatus::success;
+  }
+  return TaskStatus::fail;
+}
+
+//----------------------------------------------------------------------------------------
+// functions for dust fluids
+
+TaskStatus TimeIntegratorTaskList::CalculateDustFluidsFlux(MeshBlock *pmb, int stage) {
+  DustFluids *pdf = pmb->pdustfluids;
+  if (stage <= nstages) {
+    if (stage_wghts[stage-1].main_stage) {
+      if ((integrator == "vl2") && (stage-stage_wghts[0].orbital_stage == 1) &&
+          (pdf->dfdrag.drag_method == "explicit")) {
+        pdf->CalculateDustFluidsFluxes(pdf->df_prim, 1);
+      } else {
+        pdf->CalculateDustFluidsFluxes(pdf->df_prim, pdf->dust_xorder);
+      }
+    }
+    return TaskStatus::next;
+  }
+  return TaskStatus::fail;
+}
+
+
+
+TaskStatus TimeIntegratorTaskList::SendDustFluidsFlux(MeshBlock *pmb, int stage) {
+  DustFluids *pdf = pmb->pdustfluids;
+
+  if (stage <= nstages) {
+    if (stage_wghts[stage-1].main_stage ||
+        pmb->pmy_mesh->sts_loc == TaskType::op_split_before ||
+        pmb->pmy_mesh->sts_loc == TaskType::op_split_after) {
+      if (pdf->dfdif.dustfluids_diffusion_defined)
+        pdf->dfccdif.diffccbvar.SendFluxCorrection();
+      pdf->dfbvar.SendFluxCorrection();
+    }
+    return TaskStatus::success;
+  }
+  return TaskStatus::fail;
+}
+
+
+
+TaskStatus TimeIntegratorTaskList::ReceiveAndCorrectDustFluidsFlux(MeshBlock *pmb, int stage) {
+  DustFluids *pdf = pmb->pdustfluids;
+
+  if (stage <= nstages) {
+    if (stage_wghts[stage-1].main_stage ||
+        pmb->pmy_mesh->sts_loc == TaskType::op_split_before ||
+        pmb->pmy_mesh->sts_loc == TaskType::op_split_after) {
+
+      bool ret_diff = true;
+      if (pdf->dfdif.dustfluids_diffusion_defined)
+        ret_diff = pdf->dfccdif.diffccbvar.ReceiveFluxCorrection();
+
+      bool ret_dust = pdf->dfbvar.ReceiveFluxCorrection();
+
+      if (ret_dust && ret_diff) {
+        return TaskStatus::next;
+      } else {
+        return TaskStatus::fail;
+      }
+    } else {
+      return TaskStatus::next;
+    }
+  }
+  return TaskStatus::fail;
+}
+
+
+TaskStatus TimeIntegratorTaskList::IntegrateDustFluids(MeshBlock *pmb, int stage) {
+  DustFluids *pdf = pmb->pdustfluids;
+
+  if (stage <= nstages) {
+    if (stage_wghts[stage-1].main_stage) {
+      // This time-integrator-specific averaging operation logic is identical to FieldInt
+      Real ave_wghts[5];
+      ave_wghts[0] = 1.0;
+      ave_wghts[1] = stage_wghts[stage-1].delta;
+      ave_wghts[2] = 0.0;
+      ave_wghts[3] = 0.0;
+      ave_wghts[4] = 0.0;
+      pmb->WeightedAve(pdf->df_cons1, pdf->df_cons, pdf->df_cons2, pdf->df_cons0, pdf->df_cons_fl_div, ave_wghts);
+
+      ave_wghts[0] = stage_wghts[stage-1].gamma_1;
+      ave_wghts[1] = stage_wghts[stage-1].gamma_2;
+      ave_wghts[2] = stage_wghts[stage-1].gamma_3;
+      if (ave_wghts[0] == 0.0 && ave_wghts[1] == 1.0 && ave_wghts[2] == 0.0)
+        pdf->df_cons.SwapAthenaArray(pdf->df_cons1);
+      else
+        pmb->WeightedAve(pdf->df_cons, pdf->df_cons1, pdf->df_cons2, pdf->df_cons0, pdf->df_cons_fl_div, ave_wghts);
+
+      const Real wght = stage_wghts[stage-1].beta*pmb->pmy_mesh->dt;
+      pdf->AddDustFluidsFluxDivergence(wght, pdf->df_cons);
+      // add coordinate (geometric) source terms
+      pmb->pcoord->AddCoordTermsDivergenceDustFluids(wght, pdf->df_flux, pdf->df_prim, pdf->df_cons);
+
+      // Hardcode an additional flux divergence weighted average for the penultimate
+      // stage of SSPRK(5,4) since it cannot be expressed in a 3S* framework
+      if (stage == 4 && integrator == "ssprk5_4") {
+        // From Gottlieb (2009), u^(n+1) partial calculation
+        ave_wghts[0] = -1.0; // -u^(n) coeff.
+        ave_wghts[1] = 0.0;
+        ave_wghts[2] = 0.0;
+        const Real beta = 0.063692468666290; // F(u^(3)) coeff.
+        const Real wght_ssp = beta*pmb->pmy_mesh->dt;
+        // writing out to u2 register
+        pmb->WeightedAve(pdf->df_cons2, pdf->df_cons1, pdf->df_cons2, pdf->df_cons0, pdf->df_cons_fl_div, ave_wghts);
+        pdf->AddDustFluidsFluxDivergence(wght_ssp, pdf->df_cons2);
+        // add coordinate (geometric) source terms
+        pmb->pcoord->AddCoordTermsDivergenceDustFluids(wght_ssp, pdf->df_flux, pdf->df_cons, pdf->df_cons2);
+      }
+    }
+    return TaskStatus::next;
+  }
+  return TaskStatus::fail;
+}
+
+
+//----------------------------------------------------------------------------------------
+//! Functions to add source terms
+
+TaskStatus TimeIntegratorTaskList::AddSourceTermsDustFluids(MeshBlock *pmb, int stage) {
+  DustFluids *pdf = pmb->pdustfluids;
+
+  // return if there are no source terms to be added
+  if (!(pdf->dfsrc.dustfluids_sourceterms_defined)
+      || pmb->pmy_mesh->fluid_setup != FluidFormulation::evolve) {
+    if (stage <= nstages) {
+      if (stage_wghts[stage-1].main_stage) {
+        pmb->DeepCopy(pdf->df_cons_af_src, pdf->df_cons);
+      }
+      return TaskStatus::next;
+    }
+  }
+
+  if (stage <= nstages) {
+    if (stage_wghts[stage-1].main_stage) {
+      // Time at beginning of stage for u()
+      Real t_start_stage = pmb->pmy_mesh->time
+                           + stage_wghts[(stage-1)].sbeta*pmb->pmy_mesh->dt;
+      // Scaled coefficient for RHS update
+      Real dt = (stage_wghts[(stage-1)].beta)*(pmb->pmy_mesh->dt);
+      // Evaluate the source terms at the time at the beginning of the stage
+      pdf->dfsrc.AddDustFluidsSourceTerms(t_start_stage, dt, pdf->df_flux, pdf->df_prim, pdf->df_cons);
+      pmb->DeepCopy(pdf->df_cons_af_src, pdf->df_cons);
+    }
+    return TaskStatus::next;
+  }
+
+  return TaskStatus::fail;
+}
+
+
+TaskStatus TimeIntegratorTaskList::SetPropertiesDustFluids(MeshBlock *pmb, int stage) {
+  Hydro *ph = pmb->phydro;
+  DustFluids *pdf = pmb->pdustfluids;
+
+  if (stage <= nstages) {
+    if (stage_wghts[stage-1].main_stage) {
+      Real t_start_stage = pmb->pmy_mesh->time + stage_wghts[(stage-1)].sbeta*pmb->pmy_mesh->dt;
+      pdf->SetDustFluidsProperties(t_start_stage, ph->w, pdf->df_prim, pdf->stopping_time_array,
+          pdf->nu_dustfluids_array, pdf->cs_dustfluids_array);
+      // back up the stopping time, nu_dust, cs_dust at the first main stage
+      if (pmb->pmy_mesh->orbital_advection < 2) { // zeroth or first order orbital splitting
+        if (stage == 1) {
+          pmb->DeepCopy(pdf->stopping_time_array_n, pdf->stopping_time_array);
+          pmb->DeepCopy(pdf->nu_dustfluids_array_n, pdf->nu_dustfluids_array);
+          pmb->DeepCopy(pdf->cs_dustfluids_array_n, pdf->cs_dustfluids_array);
+          pmb->DeepCopy(ph->w_n, ph->w);
+          pmb->DeepCopy(pdf->df_prim_n, pdf->df_prim);
+        }
+      } else { // second order orbital splitting
+        if (stage == 2) {
+          pmb->DeepCopy(pdf->stopping_time_array_n, pdf->stopping_time_array);
+          pmb->DeepCopy(pdf->nu_dustfluids_array_n, pdf->nu_dustfluids_array);
+          pmb->DeepCopy(pdf->cs_dustfluids_array_n, pdf->cs_dustfluids_array);
+          pmb->DeepCopy(ph->w_n, ph->w);
+          pmb->DeepCopy(pdf->df_prim_n, pdf->df_prim);
+        }
+      }
+    }
+    return TaskStatus::next;
+  }
+  return TaskStatus::fail;
+}
+
+
+TaskStatus TimeIntegratorTaskList::DiffuseDustFluids(MeshBlock *pmb, int stage) {
+  Hydro      *ph  = pmb->phydro;
+  DustFluids *pdf = pmb->pdustfluids;
+
+  // return if there are no diffusion to be added
+  if (!(pdf->dfdif.dustfluids_diffusion_defined)
+      || pmb->pmy_mesh->fluid_setup != FluidFormulation::evolve) return TaskStatus::next;
+
+  if (stage <= nstages) {
+    if (stage_wghts[stage-1].main_stage ||
+        pmb->pmy_mesh->sts_loc == TaskType::op_split_before ||
+        pmb->pmy_mesh->sts_loc == TaskType::op_split_after) {
+      // if using orbital advection, put modified conservative into the function
+      if (pmb->porb->orbital_advection_defined) {
+        for (int dust_id=0; dust_id<NDUSTFLUIDS; ++dust_id) {
+          pmb->porb->ResetOrbitalSystemConversionFlag();
+          pmb->porb->ConvertOrbitalSystemDustFluids(dust_id, pdf->df_prim, pdf->df_cons, OrbitalTransform::prim);
+        }
+        pdf->dfdif.CalcDustFluidsDiffusionFlux(ph->w, pdf->df_prim, pmb->porb->w_orb,
+            pmb->porb->df_prim_orb, pmb->porb->u_orb, pmb->porb->df_cons_orb);
+        pmb->porb->ResetOrbitalSystemConversionFlag(); // TODO
+      } else {
+        pdf->dfdif.CalcDustFluidsDiffusionFlux(ph->w, pdf->df_prim, ph->w, pdf->df_prim, ph->u, pdf->df_cons);
+      }
+    }
+    return TaskStatus::next;
+  }
+  return TaskStatus::fail;
+}
+
+
+TaskStatus TimeIntegratorTaskList::SendDustFluids(MeshBlock *pmb, int stage) {
+  DustFluids *pdf = pmb->pdustfluids;
+
+  if (stage <= nstages) {
+    // Swap DustFluids quantity in BoundaryVariable interface back to conserved var formulation
+    // (also needed in SetBoundariesDustFluids(), since the tasks are independent)
+    if (pdf->dfdif.dustfluids_diffusion_defined) {
+      pdf->dfccdif.diffccbvar.SwapDustDiffusionQuantity(pdf->dfccdif.diff_mom_cc,
+          DustDiffusionBoundaryQuantity::cons_diff);
+      pdf->dfccdif.diffccbvar.SendBoundaryBuffers();
+    }
+    pdf->dfbvar.SwapDustFluidsQuantity(pdf->df_cons, DustFluidsBoundaryQuantity::cons_df);
+    pdf->dfbvar.SendBoundaryBuffers();
+  } else {
+    return TaskStatus::fail;
+  }
+  return TaskStatus::success;
+}
+
+
+//----------------------------------------------------------------------------------------
+//! Function to receive DustFluids variables between MeshBlocks
+
+TaskStatus TimeIntegratorTaskList::ReceiveDustFluids(MeshBlock *pmb, int stage) {
+  DustFluids *pdf = pmb->pdustfluids;
+
+  bool ret_dust = false;
+  bool ret_diff = true;
+
+  if (stage <= nstages) {
+    if (pdf->dfdif.dustfluids_diffusion_defined)
+      ret_diff = pdf->dfccdif.diffccbvar.ReceiveBoundaryBuffers();
+    ret_dust = pdf->dfbvar.ReceiveBoundaryBuffers();
+  } else {
+    return TaskStatus::fail;
+  }
+  if (ret_dust && ret_diff) {
+    return TaskStatus::success;
+  } else {
+    return TaskStatus::fail;
+  }
+}
+
+//----------------------------------------------------------------------------------------
+//! Function to set DustFluids boundaries
+
+TaskStatus TimeIntegratorTaskList::SetBoundariesDustFluids(MeshBlock *pmb, int stage) {
+  DustFluids *pdf = pmb->pdustfluids;
+
+  if (stage <= nstages) {
+    if (pdf->dfdif.dustfluids_diffusion_defined) {
+      pdf->dfccdif.diffccbvar.SwapDustDiffusionQuantity(pdf->dfccdif.diff_mom_cc,
+          DustDiffusionBoundaryQuantity::cons_diff);
+      pdf->dfccdif.diffccbvar.SetBoundaries();
+    }
+    pdf->dfbvar.SwapDustFluidsQuantity(pdf->df_cons, DustFluidsBoundaryQuantity::cons_df);
+    pdf->dfbvar.SetBoundaries();
+    return TaskStatus::success;
+  }
+  return TaskStatus::fail;
+}
+
+//----------------------------------------------------------------------------------------
+//! Function to communicate DustFluids variables between MeshBlocks with shear
+
+TaskStatus TimeIntegratorTaskList::SendDustFluidsShear(MeshBlock *pmb, int stage) {
+  DustFluids *pdf = pmb->pdustfluids;
+
+  if (stage <= nstages) {
+    if (pdf->dfdif.dustfluids_diffusion_defined)
+      pdf->dfccdif.diffccbvar.SendShearingBoxBoundaryBuffers();
+    pdf->dfbvar.SendShearingBoxBoundaryBuffers();
+  } else {
+    return TaskStatus::fail;
+  }
+  return TaskStatus::success;
+}
+
+//----------------------------------------------------------------------------------------
+//! Function to communicate DustFluids variables between MeshBlocks with shear
+
+TaskStatus TimeIntegratorTaskList::ReceiveDustFluidsShear(MeshBlock *pmb, int stage) {
+  DustFluids *pdf = pmb->pdustfluids;
+
+  bool ret_diff = true;
+  bool ret_dust = false;
+
+  if (stage <= nstages) {
+    if (pdf->dfdif.dustfluids_diffusion_defined)
+      ret_diff = pdf->dfccdif.diffccbvar.ReceiveShearingBoxBoundaryBuffers();
+    ret_dust = pdf->dfbvar.ReceiveShearingBoxBoundaryBuffers();
+  } else {
+    return TaskStatus::fail;
+  }
+
+  if (ret_dust && ret_diff) {
+    if (pdf->dfdif.dustfluids_diffusion_defined)
+      pdf->dfccdif.diffccbvar.SetShearingBoxBoundaryBuffers(pdf->dust_xorder);
+    pdf->dfbvar.SetShearingBoxBoundaryBuffers(pdf->dust_xorder);
+    return TaskStatus::success;
+  } else {
+    return TaskStatus::fail;
+  }
+}
+
+
+//----------------------------------------------------------------------------------------
+//! Function to communicate DustFluids variables between MeshBlocks with shear
+
+TaskStatus TimeIntegratorTaskList::SendDustFluidsFluxShear(MeshBlock *pmb, int stage) {
+  DustFluids *pdf = pmb->pdustfluids;
+
+  if (stage <= nstages) {
+    if (stage_wghts[stage-1].main_stage ||
+        pmb->pmy_mesh->sts_loc == TaskType::op_split_before ||
+        pmb->pmy_mesh->sts_loc == TaskType::op_split_after) {
+      if (pdf->dfdif.dustfluids_diffusion_defined)
+        pdf->dfccdif.diffccbvar.SendFluxShearingBoxBoundaryBuffers();
+      pdf->dfbvar.SendFluxShearingBoxBoundaryBuffers();
+    }
+    return TaskStatus::success;
+  }
+  return TaskStatus::fail;
+}
+
+
+
+//----------------------------------------------------------------------------------------
+//! Function to communicate DustFluids variables between MeshBlocks with shear
+
+TaskStatus TimeIntegratorTaskList::ReceiveDustFluidsFluxShear(MeshBlock *pmb, int stage) {
+  DustFluids *pdf = pmb->pdustfluids;
+
+  if (stage <= nstages) {
+    if (stage_wghts[stage-1].main_stage ||
+        pmb->pmy_mesh->sts_loc == TaskType::op_split_before ||
+        pmb->pmy_mesh->sts_loc == TaskType::op_split_after) {
+
+      bool ret_diff = true;
+      if (pdf->dfdif.dustfluids_diffusion_defined)
+        ret_diff = pdf->dfccdif.diffccbvar.ReceiveFluxShearingBoxBoundaryBuffers();
+
+      bool ret_dust = pdf->dfbvar.ReceiveFluxShearingBoxBoundaryBuffers();
+
+      if (ret_dust && ret_diff) {
+        if (pdf->dfdif.dustfluids_diffusion_defined)
+          pdf->dfccdif.diffccbvar.SetFluxShearingBoxBoundaryBuffers(pdf->dust_xorder);
+        pdf->dfbvar.SetFluxShearingBoxBoundaryBuffers(pdf->dust_xorder);
+        return TaskStatus::success;
+      } else {
+        return TaskStatus::fail;
+      }
+    } else {
+      return TaskStatus::success;
+    }
+  }
+  return TaskStatus::fail;
+}
+
+
+
+
+//----------------------------------------------------------------------------------------
+//! Function to calculate the drags between dust and gas
+
+TaskStatus TimeIntegratorTaskList::DustGasDrag(MeshBlock *pmb, int stage) {
+  DustFluids *pdf = pmb->pdustfluids;
+  Hydro      *ph  = pmb->phydro;
+
+  if (stage <= nstages) {
+    if (stage_wghts[stage-1].main_stage) {
+      // Time at beginning of stage for conservasion
+      Real t_start_stage = pmb->pmy_mesh->time + stage_wghts[(stage-1)].sbeta*pmb->pmy_mesh->dt;
+      // Scaled coefficient for RHS update
+      Real dt = (stage_wghts[(stage-1)].beta)*(pmb->pmy_mesh->dt);
+
+      if (pdf->dfdrag.time_drag == 0.0) {
+        // Evaluate the aerodynamic drags at the beginning
+        pdf->dfdrag.DragIntegrate(stage, dt, pdf->stopping_time_array,
+                                  ph->w, pdf->df_prim, ph->u, pdf->df_cons);
+      } else if (t_start_stage >= (pdf->dfdrag.time_drag)) {
+        // Evaluate the time-dependent drags after dfdrag.time_drag
+        pdf->dfdrag.DragIntegrate(stage, dt, pdf->stopping_time_array,
+                                  ph->w, pdf->df_prim, ph->u, pdf->df_cons);
+      }
+    }
+    return TaskStatus::next;
   }
   return TaskStatus::fail;
 }
