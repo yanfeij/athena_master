@@ -16,6 +16,8 @@
 
 // Athena++ headers
 #include "../athena.hpp"
+#include "../dustfluids/dustfluids.hpp"
+#include "../dustfluids/srcterms/dustfluids_srcterms.hpp"
 #include "../eos/eos.hpp"
 #include "../field/field.hpp"
 #include "../gravity/gravity.hpp"

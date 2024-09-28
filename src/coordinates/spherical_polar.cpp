@@ -20,6 +20,8 @@
 #include "../athena.hpp"
 #include "../athena_arrays.hpp"
 #include "../cr/cr.hpp"
+#include "../dustfluids/dustfluids.hpp"
+#include "../dustfluids/dustfluids_diffusion/dustfluids_diffusion.hpp"
 #include "../eos/eos.hpp"
 #include "../hydro/hydro.hpp"
 #include "../hydro/hydro_diffusion/hydro_diffusion.hpp"
@@ -524,6 +526,94 @@ void SphericalPolar::AddCoordTermsDivergence(const Real dt, const AthenaArray<Re
 
   return;
 }
+
+
+void SphericalPolar::AddCoordTermsDivergenceDustFluids(const Real dt, const AthenaArray<Real> *df_flx,
+                                   const AthenaArray<Real> &prim_df, AthenaArray<Real> &cons_df) {
+  bool use_x2_fluxes = pmy_block->block_size.nx2 > 1;
+
+  DustFluids *pdf              = pmy_block->pdustfluids;
+  DustFluidsDiffusion &dfd     = pmy_block->pdustfluids->dfdif;
+  bool do_dustfluids_diffusion = pdf->dfdif.dustfluids_diffusion_defined;
+
+  // Go through cells
+  for (int n = 0; n<NDUSTFLUIDS; ++n) {
+    int dust_id = n;
+    int rho_id  = 4*dust_id;
+    int v1_id   = rho_id + 1;
+    int v2_id   = rho_id + 2;
+    int v3_id   = rho_id + 3;
+    for (int k=pmy_block->ks; k<=pmy_block->ke; ++k) {
+      for (int j=pmy_block->js; j<=pmy_block->je; ++j) {
+#pragma omp simd
+        for (int i=pmy_block->is; i<=pmy_block->ie; ++i) {
+          // src_1 = < M_{theta theta} + M_{phi phi} ><1/r>
+          Real m_ii = prim_df(rho_id,k,j,i)*(SQR(prim_df(v2_id,k,j,i)) + SQR(prim_df(v3_id,k,j,i)));
+
+          if (pdf->SoundSpeed_Flag)
+            m_ii += SQR(pdf->cs_dustfluids_array(dust_id,k,j,i)) * prim_df(rho_id,k,j,i);
+
+          if (!STS_ENABLED) {
+            if (do_dustfluids_diffusion && dfd.Momentum_Diffusion_Flag) {
+              // Dust Momentum diffusive flux
+              m_ii += 0.5*(dfd.dustfluids_diffusion_flux[X2DIR](v2_id,k,j+1,i) +
+                           dfd.dustfluids_diffusion_flux[X2DIR](v2_id,k,j,i));
+
+              m_ii += 0.5*(dfd.dustfluids_diffusion_flux[X3DIR](v3_id,k+1,j,i) +
+                           dfd.dustfluids_diffusion_flux[X3DIR](v3_id,k,j,i));
+            }
+          }
+
+          cons_df(v1_id,k,j,i) += dt*coord_src1_i_(i)*m_ii;
+
+          // src_2 = -< M_{theta r} ><1/r>
+          cons_df(v2_id,k,j,i) -= dt*coord_src2_i_(i)*
+                          (coord_area1_i_(i)   * df_flx[X1DIR](v2_id,k,j,i)
+                          +coord_area1_i_(i+1) * df_flx[X1DIR](v2_id,k,j,i+1));
+
+          // src_3 = -< M_{phi r} ><1/r>
+          cons_df(v3_id,k,j,i) -= dt*coord_src2_i_(i)*
+                          (coord_area1_i_(i)  * df_flx[X1DIR](v3_id,k,j,i)
+                        + coord_area1_i_(i+1) * df_flx[X1DIR](v3_id,k,j,i+1));
+
+          // src_2 = < M_{phi phi} ><cot theta/r>
+          Real m_pp  = prim_df(rho_id,k,j,i)*SQR(prim_df(v3_id,k,j,i));
+          m_pp      += SQR(pdf->cs_dustfluids_array(dust_id,k,j,i))*prim_df(rho_id,k,j,i);
+
+          if (!STS_ENABLED) {
+            if (do_dustfluids_diffusion && dfd.Momentum_Diffusion_Flag) {
+            m_pp += 0.5*(dfd.dustfluids_diffusion_flux[X3DIR](v3_id,k+1,j,i) +
+                         dfd.dustfluids_diffusion_flux[X3DIR](v3_id,k,j,i));
+            }
+          }
+
+          cons_df(v2_id,k,j,i) += dt*coord_src1_i_(i)*coord_src1_j_(j)*m_pp;
+
+          // src_3 = -< M_{phi theta} ><cot theta/r>
+          if (use_x2_fluxes) {
+            cons_df(v3_id,k,j,i) -= dt*coord_src1_i_(i)*coord_src2_j_(j)*
+                            (coord_area2_j_(j)*df_flx[X2DIR](v3_id,k,j,i)
+                            + coord_area2_j_(j+1)*df_flx[X2DIR](v3_id,k,j+1,i));
+          } else {
+            Real m_ph = prim_df(rho_id,k,j,i) * prim_df(v3_id,k,j,i) * prim_df(v2_id,k,j,i);
+
+          if (!STS_ENABLED) {
+            if (do_dustfluids_diffusion && dfd.Momentum_Diffusion_Flag)
+              m_ph += 0.5*(dfd.dustfluids_diffusion_flux[X2DIR](v3_id,k,j+1,i) +
+                           dfd.dustfluids_diffusion_flux[X2DIR](v3_id,k,j,i));
+          }
+
+            cons_df(v3_id,k,j,i) -= dt*coord_src1_i_(i)*coord_src3_j_(j)*m_ph;
+          }
+
+        }
+      }
+    }
+  }
+
+  return;
+}
+
 
 //----------------------------------------------------------------------------------------
 // Coordinate (Geometric) source term function for STS
