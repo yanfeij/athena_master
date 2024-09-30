@@ -20,6 +20,7 @@
 #include "../athena.hpp"
 #include "../athena_arrays.hpp"
 #include "../coordinates/coordinates.hpp"
+#include "../dustfluids/dustfluids.hpp"
 #include "../field/field.hpp"
 #include "../hydro/hydro.hpp"
 #include "../mesh/mesh.hpp"
@@ -60,6 +61,22 @@ void OrbitalAdvection::CalculateOrbitalAdvectionCC(const Real dt,
               u(nph,k,j,i) = hbuf(k,i,j+shift) - (pflux(j+1) - pflux(j));
             }
           }
+
+          // calculate dust fluids flux
+          if (NDUSTFLUIDS > 0) {
+            for (int ndv=0; ndv<NDUSTVARS; ++ndv) {
+              dfbuf.InitWithShallowSlice(orbital_df_cons, 4, ndv, 1);
+              if (dust_xorder <= 2) {
+                RemapFluxPlm(pflux, dfbuf, epsilon, osgn, k, i, js, je+1, shift0);
+              } else {
+                RemapFluxPpm(pflux, dfbuf, epsilon, osgn, k, i, js, je+1, shift0);
+              }
+              for (int j=js; j<=je; j++) {
+                cons_df(ndv,k,j,i) = dfbuf(k,i,j+shift) - (pflux(j+1) - pflux(j));
+              }
+            }
+          }
+
           // calculate passive scalar flux
           for (int nsc=0; nsc<NSCALARS; ++nsc) {
             hbuf.InitWithShallowSlice(orbital_scalar, 4, nsc, 1);
@@ -97,6 +114,22 @@ void OrbitalAdvection::CalculateOrbitalAdvectionCC(const Real dt,
               u(nph,k,j,i) = hbuf(j,i,k+shift) - (pflux(k+1) - pflux(k));
             }
           }
+
+          // calculate dust fluids flux
+          if (NDUSTFLUIDS > 0) {
+            for (int ndv=0; ndv<NDUSTVARS; ++ndv) {
+              dfbuf.InitWithShallowSlice(orbital_df_cons, 4, ndv, 1);
+              if (dust_xorder <= 2) {
+                RemapFluxPlm(pflux, dfbuf, epsilon, osgn, j, i, ks, ke+1, shift0);
+              } else {
+                RemapFluxPpm(pflux, dfbuf, epsilon, osgn, j, i, ks, ke+1, shift0);
+              }
+              for (int k=ks; k<=ke; k++) {
+                cons_df(ndv,k,j,i) = dfbuf(j,i,k+shift) - (pflux(k+1) - pflux(k));
+              }
+            }
+          }
+
           // calculate passive scalar flux
           for (int nsc=0; nsc<NSCALARS; ++nsc) {
             hbuf.InitWithShallowSlice(orbital_scalar, 4, nsc, 1);

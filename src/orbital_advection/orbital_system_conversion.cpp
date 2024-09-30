@@ -117,6 +117,106 @@ void OrbitalAdvection::ConvertOrbitalSystem(const AthenaArray<Real> &w0,
   return;
 }
 
+
+void OrbitalAdvection::ConvertOrbitalSystemDustFluids(const int dust_id, const AthenaArray<Real> &df_prim0,
+                       const AthenaArray<Real> &df_cons0, const OrbitalTransform trans) {
+  int flag = static_cast<int>(trans);
+  if ((orbital_system_conversion_done&flag) > 0) {
+    int il = pmb_->is-(NGHOST); int jl = pmb_->js; int kl = pmb_->ks;
+    int iu = pmb_->ie+(NGHOST); int ju = pmb_->je; int ku = pmb_->ke;
+    if (nc2>1) {
+      jl -= NGHOST;
+      ju += NGHOST;
+    }
+    if (nc3>1) {
+      kl -= NGHOST;
+      ku += NGHOST;
+    }
+    // prim
+    if((orbital_system_conversion_done&flag)%2==1) {
+      if(orbital_direction == 1) {
+        int rho_id  = 4*dust_id;
+        int v1_id   = rho_id + 1;
+        int v2_id   = rho_id + 2;
+        int v3_id   = rho_id + 3;
+        for(int k=kl; k<=ku; k++) {
+          for(int j=jl; j<=ju; j++) {
+#pragma omp simd
+            for(int i=il; i<=iu; i++) {
+              df_prim_orb(rho_id, k, j, i) = df_prim0(rho_id, k, j, i);
+              df_prim_orb(v1_id,  k, j, i) = df_prim0(v1_id,  k, j, i);
+              df_prim_orb(v2_id,  k, j, i) = df_prim0(v2_id,  k, j, i) + vKc(k, i);
+              df_prim_orb(v3_id,  k, j, i) = df_prim0(v3_id,  k, j, i);
+            }
+          }
+        }
+      } else if(orbital_direction == 2) {
+        int rho_id  = 4*dust_id;
+        int v1_id   = rho_id + 1;
+        int v2_id   = rho_id + 2;
+        int v3_id   = rho_id + 3;
+        for(int k=kl; k<=ku; k++) {
+          for(int j=jl; j<=ju; j++) {
+#pragma omp simd
+            for(int i=il; i<=iu; i++) {
+              df_prim_orb(rho_id, k, j, i) = df_prim0(rho_id, k, j, i);
+              df_prim_orb(v1_id,  k, j, i) = df_prim0(v1_id,  k, j, i);
+              df_prim_orb(v2_id,  k, j, i) = df_prim0(v2_id,  k, j, i);
+              df_prim_orb(v3_id,  k, j, i) = df_prim0(v3_id,  k, j, i) + vKc(j, i);
+            }
+          }
+        }
+      }
+      orbital_system_conversion_done -= 1;
+    }
+    // cons
+    if((orbital_system_conversion_done&flag)>=2) {
+      if(orbital_direction == 1) {
+        int rho_id  = 4*dust_id;
+        int v1_id   = rho_id + 1;
+        int v2_id   = rho_id + 2;
+        int v3_id   = rho_id + 3;
+        for(int k=kl; k<=ku; k++) {
+          for(int j=jl; j<=ju; j++) {
+#pragma omp simd
+            for(int i=il; i<=iu; i++) {
+              Real den = df_cons0(rho_id, k, j, i);
+              Real m2  = df_cons0(v2_id,  k, j, i);
+              Real mk  = den*vKc(k, i);
+              df_cons_orb(rho_id, k, j, i) = den;
+              df_cons_orb(v1_id,  k, j, i) = df_cons0(v1_id, k, j, i);
+              df_cons_orb(v2_id,  k, j, i) = m2 + mk;
+              df_cons_orb(v3_id,  k, j, i) = df_cons0(v3_id, k, j, i);
+            }
+          }
+        }
+      } else if(orbital_direction == 2) {
+        int rho_id  = 4*dust_id;
+        int v1_id   = rho_id + 1;
+        int v2_id   = rho_id + 2;
+        int v3_id   = rho_id + 3;
+        for(int k=kl; k<=ku; k++) {
+          for(int j=jl; j<=ju; j++) {
+#pragma omp simd
+            for(int i=il; i<=iu; i++) {
+              Real den = df_cons0(rho_id, k, j, i);
+              Real m3  = df_cons0(v3_id,  k, j, i);
+              Real mk  = den*vKc(j, i);
+              df_cons_orb(rho_id, k, j, i) = den;
+              df_cons_orb(v1_id,  k, j, i) = df_cons0(v1_id, k, j, i);
+              df_cons_orb(v2_id,  k, j, i) = df_cons0(v2_id, k, j, i);
+              df_cons_orb(v3_id,  k, j, i) = m3+ mk;
+            }
+          }
+        }
+      }
+      orbital_system_conversion_done -= 2;
+    }
+  }
+  return;
+}
+
+
 //----------------------------------------------------------------------------------------
 //! \fn void OrbitalAdvection::ResetOrbitalSystemConversionFlag()
 //! \brief orbital_system_conversion_done flag for HydroDiffusion() and Outputs

@@ -22,6 +22,7 @@
 #include "../bvals/bvals.hpp"
 #include "../bvals/bvals_interfaces.hpp"
 #include "../coordinates/coordinates.hpp"
+#include "../dustfluids/dustfluids.hpp"
 #include "../field/field.hpp"
 #include "../globals.hpp"
 #include "../hydro/hydro.hpp"
@@ -41,7 +42,8 @@
 // constructor of OrbitalAdvection class
 OrbitalAdvection::OrbitalAdvection(MeshBlock *pmb, ParameterInput *pin)
     : pmb_(pmb), pm_(pmb->pmy_mesh), ph_(pmb->phydro),
-      pf_(pmb->pfield), pco_(pmb->pcoord), pbval_(pmb->pbval), ps_(pmb->pscalars) {
+      pf_(pmb->pfield), pco_(pmb->pcoord), pbval_(pmb->pbval),
+      pdf_(pmb->pdustfluids), ps_(pmb->pscalars) {
   // read parameters from input file
   orbital_splitting_order = pm_->orbital_advection;
   orbital_advection_defined = (orbital_splitting_order != 0) ? true : false;
@@ -50,6 +52,9 @@ OrbitalAdvection::OrbitalAdvection(MeshBlock *pmb, ParameterInput *pin)
   // check xorder for reconstruction
   xorder = pmb_->precon->xorder;
   xgh = (xorder<=2)? 1 : 2;
+
+  if (NDUSTFLUIDS > 0)
+    dust_xorder = pmb->pdustfluids->dust_xorder;
 
   // Read parameters
   if (std::strcmp(COORDINATE_SYSTEM, "cartesian") == 0) {
@@ -293,6 +298,10 @@ OrbitalAdvection::OrbitalAdvection(MeshBlock *pmb, ParameterInput *pin)
             off_coarse[1].NewAthenaArray((nc3+2*NGHOST)/2+1, (nc1+2*NGHOST)/2);
           }
         }
+        if (NDUSTFLUIDS>0) {
+          orbital_df_cons.NewAthenaArray(NDUSTVARS, nc3, nc1, nc2+onx+1);
+        }
+
         if (NSCALARS>0) {
           orbital_scalar.NewAthenaArray(NSCALARS, nc3, nc1, nc2+onx+1);
         }
@@ -325,6 +334,10 @@ OrbitalAdvection::OrbitalAdvection(MeshBlock *pmb, ParameterInput *pin)
             off_coarse[1].NewAthenaArray((nc2+2*NGHOST)/2+1, (nc1+2*NGHOST)/2);
           }
         }
+        if (NDUSTFLUIDS>0) {
+          orbital_df_cons.NewAthenaArray(NDUSTVARS, nc2, nc1, nc3+onx+1);
+        }
+
         if (NSCALARS>0) {
           orbital_scalar.NewAthenaArray(NSCALARS, nc2, nc1, nc3+onx+1);
         }
@@ -332,6 +345,11 @@ OrbitalAdvection::OrbitalAdvection(MeshBlock *pmb, ParameterInput *pin)
     }
     w_orb.NewAthenaArray(NHYDRO,nc3,nc2,nc1);
     u_orb.NewAthenaArray(NHYDRO,nc3,nc2,nc1);
+
+    if (NDUSTFLUIDS > 0) {
+      df_prim_orb.NewAthenaArray(NDUSTVARS, nc3, nc2, nc1);
+      df_cons_orb.NewAthenaArray(NDUSTVARS, nc3, nc2, nc1);
+    }
 
     if (orbital_advection_active) {
       pflux.NewAthenaArray(onx+2*NGHOST+1);
@@ -341,6 +359,15 @@ OrbitalAdvection::OrbitalAdvection(MeshBlock *pmb, ParameterInput *pin)
         u_coarse_recv.NewAthenaArray(NHYDRO, (nc3+2*NGHOST)/2,
                                      (nc2+2*NGHOST)/2, (nc1+2*NGHOST)/2);
         u_temp.NewAthenaArray(NHYDRO, nc3, nc2, nc1);
+
+        if (NDUSTFLUIDS>0) {
+          df_cons_coarse_send.NewAthenaArray(NDUSTVARS, (nc3+2*NGHOST)/2,
+                                       (nc2+2*NGHOST)/2, (nc1+2*NGHOST)/2);
+          df_cons_coarse_recv.NewAthenaArray(NDUSTVARS, (nc3+2*NGHOST)/2,
+                                       (nc2+2*NGHOST)/2, (nc1+2*NGHOST)/2);
+          df_cons_temp.NewAthenaArray(NDUSTVARS, nc3, nc2, nc1);
+        }
+
         if (NSCALARS>0) {
           s_coarse_send.NewAthenaArray(NSCALARS, (nc3+2*NGHOST)/2,
                                        (nc2+2*NGHOST)/2, (nc1+2*NGHOST)/2);
