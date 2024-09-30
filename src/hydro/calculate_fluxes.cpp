@@ -15,6 +15,8 @@
 #include "../athena.hpp"
 #include "../athena_arrays.hpp"
 #include "../coordinates/coordinates.hpp"
+#include "../dustfluids/dustfluids.hpp"
+#include "../dustfluids/dustfluids_diffusion/dustfluids_diffusion.hpp"
 #include "../eos/eos.hpp"   // reapply floors to face-centered reconstructed states
 #include "../field/field.hpp"
 #include "../field/field_diffusion/field_diffusion.hpp"

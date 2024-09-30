@@ -17,6 +17,8 @@
 #include "../athena.hpp"
 #include "../athena_arrays.hpp"
 #include "../coordinates/coordinates.hpp"
+#include "../dustfluids/dustfluids.hpp"
+#include "../dustfluids/dustfluids_diffusion/dustfluids_diffusion.hpp"
 #include "../cr/cr.hpp"
 #include "../eos/eos.hpp"
 #include "../field/field.hpp"
@@ -164,6 +166,21 @@ void Hydro::NewBlockTimeStep() {
     // Hall effect is dispersive, not diffusive:
     min_dt_hyperbolic = std::min(min_dt_hyperbolic, min_dt_hall);
   } // field diffusion
+
+
+  if (NDUSTFLUIDS > 0) {
+    // dust fluids advection
+    DustFluids *pdf           = pmb->pdustfluids;
+    Real min_dt_hyperbolic_df = pdf->NewAdvectionDt();
+    min_dt_hyperbolic         = std::min(min_dt_hyperbolic, min_dt_hyperbolic_df);
+
+  // dust fluids diffusion
+    if (pdf->dfdif.dustfluids_diffusion_defined) {
+      Real min_dt_parabolic_df = pdf->dfdif.NewDiffusionDt();
+      min_dt_parabolic         = std::min(min_dt_parabolic, min_dt_parabolic_df);
+    }
+  }
+
 
   if (NSCALARS > 0 && pmb->pscalars->scalar_diffusion_defined) {
     Real min_dt_scalar_diff = pmb->pscalars->NewDiffusionDt();
