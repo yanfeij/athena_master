@@ -21,6 +21,7 @@
 #include "../athena.hpp"
 #include "../athena_arrays.hpp"
 #include "../coordinates/coordinates.hpp"
+#include "../dustfluids/dustfluids.hpp"
 #include "../field/field.hpp"
 #include "../globals.hpp"
 #include "../hydro/hydro.hpp"
@@ -1328,3 +1329,44 @@ void MeshRefinement::SetHydroRefinement(HydroBoundaryQuantity hydro_type) {
   }
   return;
 }
+
+
+
+void MeshRefinement::SetDustFluidsRefinement(DustFluidsBoundaryQuantity dustfluids_type) {
+  //! \todo (felker):
+  //! * e.g. refer to "int DustFluids::refinement_idx" instead of assuming that
+  //!   the correct tuple is in the first vector entry
+  DustFluids *pdf = pmy_block_->pdustfluids;
+  //! hard-coded assumption that, if multilevel, then DustFluids is always present
+  //! and enrolled in mesh refinement in the first pvars_cc_ vector entry
+  switch (dustfluids_type) {
+    case (DustFluidsBoundaryQuantity::cons_df): {
+      pvars_cc_.front() = std::make_tuple(&pdf->df_cons, &pdf->coarse_df_cons_);
+      break;
+    }
+    case (DustFluidsBoundaryQuantity::prim_df): {
+      pvars_cc_.front() = std::make_tuple(&pdf->df_prim, &pdf->coarse_df_prim_);
+      break;
+    }
+  }
+  return;
+}
+
+
+void MeshRefinement::SetDustDiffusionRefinement(DustDiffusionBoundaryQuantity dustdiffusion_type) {
+  //! \todo (felker):
+  //! * e.g. refer to "int DustFluids::refinement_idx" instead of assuming that
+  //!   the correct tuple is in the first vector entry
+  DustFluids *pdf = pmy_block_->pdustfluids;
+  //! hard-coded assumption that, if multilevel, then DustFluids is always present
+  //! and enrolled in mesh refinement in the first pvars_cc_ vector entry
+  switch (dustdiffusion_type) {
+    case (DustDiffusionBoundaryQuantity::cons_diff): {
+      pvars_cc_.front() = std::make_tuple(&(pdf->dfccdif.diff_mom_cc), &(pdf->dfccdif.coarse_diff_mom_cc_));
+      break;
+    }
+  }
+  return;
+}
+
+

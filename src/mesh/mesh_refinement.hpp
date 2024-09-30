@@ -30,6 +30,8 @@ struct FaceField;
 class BoundaryValues;
 class FaceCenteredBoundaryVariable;
 class HydroBoundaryVariable;
+class DustFluidsBoundaryVariable;
+class DustDiffusionBoundaryVariable;
 class OrbitalAdvection;
 
 //----------------------------------------------------------------------------------------
@@ -90,6 +92,8 @@ class MeshRefinement {
 
   // for switching first entry in pvars_cc_ to/from: (w, coarse_prim); (u, coarse_cons_)
   void SetHydroRefinement(HydroBoundaryQuantity hydro_type);
+  void SetDustFluidsRefinement(DustFluidsBoundaryQuantity dustfluids_type);
+  void SetDustDiffusionRefinement(DustDiffusionBoundaryQuantity dustdiffusion_type);
 
  private:
   // data
