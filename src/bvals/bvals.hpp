@@ -188,7 +188,7 @@ class BoundaryValues : public BoundaryBase, //public BoundaryPhysics,
   Real ssize_;                  // # of ghost cells in x-z plane
   Real eps_, eps_flux_;          // fraction part of the shear
   Real qomL_;
-  int xorder_, xgh_;
+  int xorder_, xgh_, dust_xorder_;
   AthenaArray<Real> pflux_;    // pencil buffer for remapping
 
   std::int64_t nblx2;
@@ -220,7 +220,8 @@ class BoundaryValues : public BoundaryBase, //public BoundaryPhysics,
   void DispatchBoundaryFunctions(
       MeshBlock *pmb, Coordinates *pco, Real time, Real dt,
       int il, int iu, int jl, int ju, int kl, int ku, int ngh,
-      AthenaArray<Real> &prim, FaceField &b, AthenaArray<Real> &ir,
+      AthenaArray<Real> &prim, AthenaArray<Real> &prim_df,
+      FaceField &b, AthenaArray<Real> &ir,
       AthenaArray<Real> &u_cr, BoundaryFace face,
       std::vector<BoundaryVariable *> bvars_subset);
 
@@ -238,6 +239,7 @@ class BoundaryValues : public BoundaryBase, //public BoundaryPhysics,
   //! - consider removing these friendship designations:
   friend class CellCenteredBoundaryVariable;
   friend class HydroBoundaryVariable;  // needed for shearing box quantities
+  friend class DustFluidsBoundaryVariable;    // needed for shearing box quantities
   friend class RadBoundaryVariable; // needed for radiation boundary condition
 };
 #endif // BVALS_BVALS_HPP_

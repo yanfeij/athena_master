@@ -21,6 +21,8 @@
 #include "../../athena.hpp"
 #include "../../athena_arrays.hpp"
 #include "../../coordinates/coordinates.hpp"
+#include "../../dustfluids/dustfluids.hpp"
+#include "../../dustfluids/dustfluids_diffusion_cc/cell_center_diffusions.hpp"
 #include "../../field/field.hpp"
 #include "../../globals.hpp"
 #include "../../hydro/hydro.hpp"
@@ -116,8 +118,8 @@ void OrbitalBoundaryCommunication::InitBoundaryData(
       if (nx3>1) { //3D
         bd.nbmax = 4;
         if (type == BoundaryQuantity::orbital_cc) {
-          ssize = (NHYDRO+NSCALARS)*(nx1/2+2)*(nx2/2+2)*(nx3/2+2);
-          lsize = (NHYDRO+NSCALARS)*nx1*nx2*nx3;
+          ssize = (NHYDRO+NDUSTVARS+NSCALARS)*(nx1/2+2)*(nx2/2+2)*(nx3/2+2);
+          lsize = (NHYDRO+NDUSTVARS+NSCALARS)*nx1*nx2*nx3;
         } else if (type == BoundaryQuantity::orbital_fc) {
           ssize = (nx1/2+1)*(nx2/2+2)*(nx3/2+2)
                   +(nx1/2+2)*(nx2/2+1)*(nx3/2+2)
@@ -133,8 +135,8 @@ void OrbitalBoundaryCommunication::InitBoundaryData(
       } else { //2D
         bd.nbmax = 2;
         if (type == BoundaryQuantity::orbital_cc) {
-          ssize = (NHYDRO+NSCALARS)*(nx1/2+2)*(nx2/2+2);
-          lsize = (NHYDRO+NSCALARS)*nx1*nx2;
+          ssize = (NHYDRO+NDUSTVARS+NSCALARS)*(nx1/2+2)*(nx2/2+2);
+          lsize = (NHYDRO+NDUSTVARS+NSCALARS)*nx1*nx2;
         } else if (type == BoundaryQuantity::orbital_fc) {
           ssize = (nx1/2+1)*(nx2/2+2)
                   +(nx1/2+2)*(nx2/2+1)
@@ -151,8 +153,8 @@ void OrbitalBoundaryCommunication::InitBoundaryData(
     } else if (porb->orbital_direction == 2) {
       bd.nbmax = 4;
       if (type == BoundaryQuantity::orbital_cc) {
-        ssize = (NHYDRO+NSCALARS)*(nx1/2+2)*(nx2/2+2)*(nx3/2+2);
-        lsize = (NHYDRO+NSCALARS)*nx1*nx2*nx3;
+        ssize = (NHYDRO+NDUSTVARS+NSCALARS)*(nx1/2+2)*(nx2/2+2)*(nx3/2+2);
+        lsize = (NHYDRO+NDUSTVARS+NSCALARS)*nx1*nx2*nx3;
       } else if (type == BoundaryQuantity::orbital_fc) {
         ssize = (nx1/2+1)*(nx2/2+2)*(nx3/2+2)
                   +(nx1/2+2)*(nx2/2+1)*(nx3/2+2)
@@ -186,7 +188,7 @@ void OrbitalBoundaryCommunication::InitBoundaryData(
     int size(0);
     if (porb->orbital_direction == 1) {
       if (type == BoundaryQuantity::orbital_cc) {
-        size = (NHYDRO+NSCALARS)*nx1*nx2*nx3;
+        size = (NHYDRO+NDUSTVARS+NSCALARS)*nx1*nx2*nx3;
       } else if (type == BoundaryQuantity::orbital_fc) {
         size = (2*nx1*nx3+nx1+nx3)*nx2;
       } else {
@@ -198,7 +200,7 @@ void OrbitalBoundaryCommunication::InitBoundaryData(
       }
     } else if (porb->orbital_direction == 2) {
       if (type == BoundaryQuantity::orbital_cc) {
-        size = (NHYDRO+NSCALARS)*nx1*nx2*nx3;
+        size = (NHYDRO+NDUSTVARS+NSCALARS)*nx1*nx2*nx3;
       } else if (type == BoundaryQuantity::orbital_fc) {
         size = (2*nx1*nx2+nx1+nx2)*nx3;
       } else {
@@ -494,7 +496,7 @@ void OrbitalBoundaryCommunication::StartReceiving(BoundaryCommSubset phase) {
 #ifdef MPI_PARALLEL
         int target_rank = orbital_recv_neighbor_[upper][n].rank;
         if ((target_rank != Globals::my_rank) && (target_rank != -1)) {
-          size = (NHYDRO+NSCALARS)*orbital_recv_cc_count_[upper][n];
+          size = (NHYDRO+NDUSTVARS+NSCALARS)*orbital_recv_cc_count_[upper][n];
           tag  = pbval_->CreateBvalsMPITag(pmy_block_->lid, n+tag_offset[upper],
                                            orbital_advection_cc_phys_id_);
           MPI_Irecv(orbital_bd_cc_[upper].recv[n], size, MPI_ATHENA_REAL,
@@ -586,6 +588,16 @@ void OrbitalBoundaryCommunication::SendBoundaryBuffersCC() {
       } else { // to finer
         LoadHydroBufferToFiner(orbital_bd_cc_[upper].send[n], p, n+offset[upper]);
       }
+      if (NDUSTFLUIDS>0) {
+        if (snb.level == mylevel) { // to same
+          LoadDustFluidsBufferSameLevel(orbital_bd_cc_[upper].send[n], p, n+offset[upper]);
+        } else if (snb.level < mylevel) { // to coarser
+          LoadDustFluidsBufferToCoarser(orbital_bd_cc_[upper].send[n], p, n+offset[upper]);
+        } else { // to finer
+          LoadDustFluidsBufferToFiner(orbital_bd_cc_[upper].send[n], p, n+offset[upper]);
+        }
+      }
+
       if (NSCALARS>0) {
         if (snb.level == mylevel) { // to same
           LoadScalarBufferSameLevel(orbital_bd_cc_[upper].send[n], p, n+offset[upper]);
@@ -595,7 +607,7 @@ void OrbitalBoundaryCommunication::SendBoundaryBuffersCC() {
           LoadScalarBufferToFiner(orbital_bd_cc_[upper].send[n], p, n+offset[upper]);
         }
       }
-      if (p != (NHYDRO+NSCALARS)*orbital_send_cc_count_[upper][n]) {
+      if (p != (NHYDRO+NDUSTVARS+NSCALARS)*orbital_send_cc_count_[upper][n]) {
         std::stringstream msg;
         msg << "### FATAL ERROR in OrbitalBoundaryCommunication"
             << "::SendBoundaryBuffersCC" << std::endl
@@ -692,6 +704,16 @@ bool OrbitalBoundaryCommunication::ReceiveBoundaryBuffersCC() {
       } else { // from finer
         SetHydroBufferFromFiner(orbital_bd_cc_[upper].recv[n], p, n+offset[upper]);
       }
+      if (NDUSTFLUIDS>0) {
+        if (snb.level == mylevel) { // from same level
+          SetDustFluidsBufferSameLevel(orbital_bd_cc_[upper].recv[n], p, n+offset[upper]);
+        } else if (snb.level < mylevel) { // from coarser
+          SetDustFluidsBufferFromCoarser(orbital_bd_cc_[upper].recv[n], p, n+offset[upper]);
+        } else { // from finer
+          SetDustFluidsBufferFromFiner(orbital_bd_cc_[upper].recv[n], p, n+offset[upper]);
+        }
+      }
+
       if (NSCALARS>0) {
         if (snb.level == mylevel) { // from same level
           SetScalarBufferSameLevel(orbital_bd_cc_[upper].recv[n], p, n+offset[upper]);
@@ -701,7 +723,7 @@ bool OrbitalBoundaryCommunication::ReceiveBoundaryBuffersCC() {
           SetScalarBufferFromFiner(orbital_bd_cc_[upper].recv[n], p, n+offset[upper]);
         }
       }
-      if (p != (NHYDRO+NSCALARS)*orbital_recv_cc_count_[upper][n]) {
+      if (p != (NHYDRO+NDUSTVARS+NSCALARS)*orbital_recv_cc_count_[upper][n]) {
         std::stringstream msg;
         msg << "### FATAL ERROR in OrbitalBoundaryCommunication"
             << "::ReceiveBoundaryBuffersCC" << std::endl
@@ -1198,6 +1220,15 @@ void OrbitalBoundaryCommunication::SetHydroBufferSameLevel(
   }
   return;
 }
+
+//----------------------------------------------------------------------------------------
+
+
+
+
+
+
+
 
 //----------------------------------------------------------------------------------------
 //! \fn void OrbitalBoundaryCommunication::SetHydroBufferFromCoarser(
@@ -2480,6 +2511,690 @@ void OrbitalBoundaryCommunication::SetFieldBufferFromFiner(
     }
   }
 }
+
+
+//----------------------------------------------------------------------------------------
+//! \fn void OrbitalBoundaryCommunication::LoadDustFluidsBufferSameLevel(
+//!                                        Real *buf, int &p, int nb)
+//! \brief load dust fluids (same level)
+void OrbitalBoundaryCommunication::LoadDustFluidsBufferSameLevel(
+                                   Real *buf, int &p, int nb) {
+  MeshBlock *pmb = pmy_block_;
+  OrbitalAdvection *porb = pmy_orbital_;
+  AthenaArray<Real> &dfi = pmb->pdustfluids->df_cons;
+
+  if(porb->orbital_uniform_mesh) { // uniform mesh
+    if(porb->orbital_direction == 1) {
+      int &onx = pmb->block_size.nx2;
+      if (nb==0) {
+        for(int k=pmb->ks; k<=pmb->ke; k++) {
+          for(int i=pmb->is; i<=pmb->ie; i++) {
+            int offset = porb->ofc(k,i);
+            int xl = pmb->js-xgh-offset+onx;
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+              for (int j=xl; j<=pmb->je; j++) {
+                buf[p++] = dfi(ndv,k,j,i);
+              }
+            }
+          }
+        }
+      } else if (nb==4) {
+        for(int k=pmb->ks; k<=pmb->ke; k++) {
+          for(int i=pmb->is; i<=pmb->ie; i++) {
+            int offset = porb->ofc(k,i);
+            int xu = pmb->je+1+xgh-offset-onx;
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+              for (int j=pmb->js; j<=xu; j++) {
+                buf[p++] = dfi(ndv,k,j,i);
+              }
+            }
+          }
+        }
+      } else {
+        std::stringstream msg;
+        msg << "### FATAL ERROR in OrbitalBoundaryCommunication"
+            << "::LoadDustFluidsBufferSameLevel" << std::endl
+            << "Neighbors are read incorrectly." << std::endl;
+        ATHENA_ERROR(msg);
+      }
+    } else if (porb->orbital_direction == 2) {
+      int &onx = pmb->block_size.nx3;
+      if (nb==0) {
+        for(int j=pmb->js; j<=pmb->je; j++) {
+          for(int i=pmb->is; i<=pmb->ie; i++) {
+            int offset = porb->ofc(j,i);
+            int xl = pmb->ks-xgh-offset+onx;
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+              for (int k=xl; k<=pmb->ke; k++) {
+                buf[p++] = dfi(ndv,k,j,i);
+              }
+            }
+          }
+        }
+      } else if (nb==4) {
+        for(int j=pmb->js; j<=pmb->je; j++) {
+          for(int i=pmb->is; i<=pmb->ie; i++) {
+            int offset = porb->ofc(j,i);
+            int xu = pmb->ke+1+xgh-offset-onx;
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+              for (int k=pmb->ks; k<=xu; k++) {
+                buf[p++] = dfi(ndv,k,j,i);
+              }
+            }
+          }
+        }
+      } else {
+        std::stringstream msg;
+        msg << "### FATAL ERROR in OrbitalBoundaryCommunication"
+            << "::LoadDustFluidsBufferSameLevel" << std::endl
+            << "Neighbors are read incorrectly." << std::endl;
+        ATHENA_ERROR(msg);
+      }
+    }
+  }
+//  else { // non-uniform mesh
+//  }
+  return;
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn void OrbitalBoundaryCommunication::LoadDustFluidsBufferToCoarser(
+//!                                        Real *buf, int &p, int nb)
+//! \brief load dust fluids (coarser level)
+void OrbitalBoundaryCommunication::LoadDustFluidsBufferToCoarser(Real *buf, int &p, int nb) {
+  MeshBlock *pmb = pmy_block_;
+  OrbitalAdvection *porb = pmy_orbital_;
+  AthenaArray<Real> &dfi = porb->df_cons_coarse_send;
+
+  if(porb->orbital_uniform_mesh) { // uniform mesh
+    if(porb->orbital_direction == 1) {
+      int honx = pmb->block_size.nx2/2;
+      if (nb==0) {
+        for(int k=pmb->cks; k<=pmb->cke; k++) {
+          for(int i=pmb->cis; i<=pmb->cie; i++) {
+            int offset = porb->ofc_coarse(k,i);
+            int xl = pmb->cjs-xgh-offset+honx;
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+              for (int j=xl; j<=pmb->cje; j++) {
+                buf[p++] = dfi(ndv,k,j,i);
+              }
+            }
+          }
+        }
+      } else if (nb==4) {
+        for(int k=pmb->cks; k<=pmb->cke; k++) {
+          for(int i=pmb->cis; i<=pmb->cie; i++) {
+            int offset = porb->ofc_coarse(k,i);
+            int xu = pmb->cje+1+xgh-offset-honx;
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+              for (int j=pmb->cjs; j<=xu; j++) {
+                buf[p++] = dfi(ndv,k,j,i);
+              }
+            }
+          }
+        }
+      } else {
+        std::stringstream msg;
+        msg << "### FATAL ERROR in OrbitalBoundaryCommunication"
+            << "::LoadDustFluidsBufferToCoarser" << std::endl
+            << "Neighbors are read incorrectly." << std::endl;
+        ATHENA_ERROR(msg);
+      }
+    } else if (porb->orbital_direction == 2) {
+      int honx = pmb->block_size.nx3/2;
+      if (nb==0) {
+        for(int j=pmb->cjs; j<=pmb->cje; j++) {
+          for(int i=pmb->cis; i<=pmb->cie; i++) {
+            int offset = porb->ofc_coarse(j,i);
+            int xl = pmb->cks-xgh-offset+honx;
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+              for (int k=xl; k<=pmb->cke; k++) {
+                buf[p++] = dfi(ndv,k,j,i);
+              }
+            }
+          }
+        }
+      } else if (nb==4) {
+        for(int j=pmb->cjs; j<=pmb->cje; j++) {
+          for(int i=pmb->cis; i<=pmb->cie; i++) {
+            int offset = porb->ofc_coarse(j,i);
+            int xu = pmb->cke+1+xgh-offset-honx;
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+              for (int k=pmb->cks; k<=xu; k++) {
+                buf[p++] = dfi(ndv,k,j,i);
+              }
+            }
+          }
+        }
+      } else {
+        std::stringstream msg;
+        msg << "### FATAL ERROR in OrbitalBoundaryCommunication"
+            << "::LoadDustFluidsBufferToCoarser" << std::endl
+            << "Neighbors are read incorrectly." << std::endl;
+        ATHENA_ERROR(msg);
+      }
+    }
+  }
+//  else { // non-uniform mesh
+//  }
+  return;
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn void OrbitalBoundaryCommunication::LoadDustFluidsBufferToFiner(
+//!                                      Real *buf, int &p, int nb)
+//! \brief load dust fluids (finer level)
+void OrbitalBoundaryCommunication::LoadDustFluidsBufferToFiner(Real *buf, int &p, int nb) {
+  MeshBlock *pmb         = pmy_block_;
+  OrbitalAdvection *porb = pmy_orbital_;
+  AthenaArray<Real> &dfi = pmb->pdustfluids->df_cons;
+
+  if(porb->orbital_uniform_mesh) { // uniform mesh
+    if(porb->orbital_direction == 1) {
+      int &onx = pmb->block_size.nx2;
+      int il, iu, jl, ju, kl, ku;
+      if (pmb->block_size.nx3>1) {
+        if(nb%4<2) {
+          kl = pmb->ks-1;
+          ku = pmb->ke+1-pmb->block_size.nx3/2;
+        } else {
+          kl = pmb->ks-1+pmb->block_size.nx3/2;
+          ku = pmb->ke+1;
+        }
+      } else {
+          kl = pmb->ks;
+          ku = pmb->ke;
+      }
+      if (nb%2==0) {
+        il = pmb->is-1;
+        iu = pmb->ie+1-pmb->block_size.nx1/2;
+      } else {
+        il = pmb->is-1+pmb->block_size.nx1/2;
+        iu = pmb->ie+1;
+      }
+      if (nb<4) {
+        jl = pmb->js-size_cc_send[0][2+nb]+1+onx;
+        ju = pmb->je+1;
+      } else if (nb<8) {
+        jl = pmb->js-1;
+        ju = pmb->je+size_cc_send[1][2+nb-4]-onx-1;
+      } else {
+        std::stringstream msg;
+        msg << "### FATAL ERROR in OrbitalBoundaryCommunication"
+            << "::LoadDustFluidsBufferToFiner" << std::endl
+            << "Neighbors are read incorrectly." << std::endl;
+        ATHENA_ERROR(msg);
+      }
+      BufferUtility::PackData(dfi, buf, 0, NDUSTVARS-1,
+                              il, iu, jl, ju, kl, ku, p);
+    } else if (porb->orbital_direction == 2) {
+      int &onx = pmb->block_size.nx3;
+      int il, iu, jl, ju, kl, ku;
+      if (nb%4<2) {
+        jl = pmb->js-1;
+        ju = pmb->je+1-pmb->block_size.nx2/2;
+      } else {
+        jl = pmb->js-1+pmb->block_size.nx2/2;
+        ju = pmb->je+1;
+      }
+      if (nb%2==0) {
+        il = pmb->is-1;
+        iu = pmb->ie+1-pmb->block_size.nx1/2;
+      } else {
+        il = pmb->is-1+pmb->block_size.nx1/2;
+        iu = pmb->ie+1;
+      }
+      if (nb<4) {
+        kl = pmb->ks-size_cc_send[0][2+nb]+1+onx;
+        ku = pmb->ke+1;
+      } else if (nb<8) {
+        kl = pmb->ks-1;
+        ku = pmb->ke+size_cc_send[0][2+nb-4]-onx-1;
+      } else {
+        std::stringstream msg;
+        msg << "### FATAL ERROR in OrbitalBoundaryCommunication"
+            << "::LoadDustFluidsBufferToFiner" << std::endl
+            << "Neighbors are read incorrectly." << std::endl;
+        ATHENA_ERROR(msg);
+      }
+      BufferUtility::PackData(dfi, buf, 0, NDUSTVARS-1,
+                              il, iu, jl, ju, kl, ku, p);
+    }
+  }
+//  else { // non-uniform mesh
+//  }
+  return;
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn void OrbitalBoundaryCommunication::SetDustFluidsBufferSameLevel(
+//!                                 Real *buf, int &p, const int nb)
+//! \brief set dust fluids (same level)
+void OrbitalBoundaryCommunication::SetDustFluidsBufferSameLevel(
+                            Real *buf, int &p, const int nb) {
+  MeshBlock *pmb              = pmy_block_;
+  OrbitalAdvection *porb      = pmy_orbital_;
+  AthenaArray<Real> &df_conso = porb->orbital_df_cons;
+
+  if(porb->orbital_uniform_mesh) { // uniform mesh
+    if(porb->orbital_direction == 1) {
+      int &onx = pmb->block_size.nx2;
+      if(nb==0) {
+        for(int k=pmb->ks; k<=pmb->ke; k++) {
+          for(int i=pmb->is; i<=pmb->ie; i++) {
+            int offset = porb->ofc(k,i);
+            int xl = pmb->js-xgh-offset+onx;
+            int xu = pmb->je;
+            if (offset<=0) {
+              xl -= onx; xu -= onx;
+            }
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+#pragma omp simd
+              for(int j=xl; j<=xu; j++) {
+                df_conso(ndv,k,i,j) = buf[p++];
+              }
+            }
+          }
+        }
+      } else if(nb==4) {
+        for(int k=pmb->ks; k<=pmb->ke; k++) {
+          for(int i=pmb->is; i<=pmb->ie; i++) {
+            int offset = porb->ofc(k,i);
+            int xl = pmb->js+onx;
+            int xu = pmb->je+1+xgh-offset;
+            if (offset>0) {
+              xl += onx; xu += onx;
+            }
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+#pragma omp simd
+              for(int j=xl; j<=xu; j++) {
+                df_conso(ndv,k,i,j) = buf[p++];
+              }
+            }
+          }
+        }
+      } else {
+        std::stringstream msg;
+        msg << "### FATAL ERROR in OrbitalBoundaryCommunication"
+            << "::SetDustFluidsBufferSameLevel" << std::endl
+            << "Neighbors are read incorrectly." << std::endl;
+        ATHENA_ERROR(msg);
+      }
+    } else if(porb->orbital_direction == 2) {
+      int &onx = pmb->block_size.nx3;
+      if (nb==0) {
+        for(int j=pmb->js; j<=pmb->je; j++) {
+          for(int i=pmb->is; i<=pmb->ie; i++) {
+            int offset = porb->ofc(j,i);
+            int xl = pmb->ks-xgh-offset+onx;
+            int xu = pmb->ke;
+            if (offset<=0) {
+              xl -= onx; xu -= onx;
+            }
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+#pragma omp simd
+              for (int k=xl; k<=xu; k++) {
+                df_conso(ndv,j,i,k) = buf[p++];
+              }
+            }
+          }
+        }
+      } else if(nb==4) {
+        for(int j=pmb->js; j<=pmb->je; j++) {
+          for(int i=pmb->is; i<=pmb->ie; i++) {
+            int offset = porb->ofc(j,i);
+            int xl = pmb->ks+onx;
+            int xu = pmb->ke+1+xgh-offset;
+            if(offset>0) {
+              xl += onx; xu += onx;
+            }
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+#pragma omp simd
+              for(int k=xl; k<=xu; k++) {
+                df_conso(ndv,j,i,k) = buf[p++];
+              }
+            }
+          }
+        }
+      } else {
+        std::stringstream msg;
+        msg << "### FATAL ERROR in OrbitalBoundaryCommunication"
+            << "::SetDustFluidsBufferSameLevel" << std::endl
+            << "Neighbors are read incorrectly." << std::endl;
+        ATHENA_ERROR(msg);
+      }
+    }
+  }
+  return;
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn void OrbitalBoundaryCommunication::SetDustFluidsBufferFromCoarser(
+//!                                   Real *buf, int &p, const int nb)
+//! \brief set dust fluids (coarser level)
+void OrbitalBoundaryCommunication::SetDustFluidsBufferFromCoarser(
+                              Real *buf, int &p, const int nb) {
+  MeshBlock         *pmb      = pmy_block_;
+  OrbitalAdvection  *porb     = pmy_orbital_;
+  AthenaArray<Real> &df_conso = porb->orbital_df_cons;
+  AthenaArray<Real> &dfco     = porb->df_cons_coarse_recv;
+  AthenaArray<Real> &dfto     = porb->df_cons_temp;
+
+  if(porb->orbital_uniform_mesh) { // uniform mesh
+    if(porb->orbital_direction == 1) {
+      int &onx = pmb->block_size.nx2;
+      int il, iu, kl, ku;
+      if(pmb->block_size.nx3>1) {
+        kl = pmb->cks-1;
+        ku = pmb->cke+1;
+      } else {
+        kl = pmb->cks;
+        ku = pmb->cke;
+      }
+      il = pmb->cis-1;
+      iu = pmb->cie+1;
+      if(nb==0) {
+        int jl = pmb->cjs-xgh-porb->max_ofc_coarse+onx/2-1;
+        int ju = pmb->cje+1;
+        // TODO(tomo-ono): This part has a problem with "#pragma omp simd"
+        //                 when using the Intel compiler
+        // BufferUtility::UnpackData(buf, dfco, 0, NDUSTVARS-1,
+        //                           il, iu, jl, ju, kl, ku, p);
+        for(int n=0; n<NDUSTVARS; ++n) {
+          for(int k=kl; k<=ku; k++) {
+            for(int j=jl; j<=ju; j++) {
+              for(int i=il; i<=iu; i++) {
+                dfco(n,k,j,i) = buf[p++];
+              }
+            }
+          }
+        }
+        pmb->pmr->ProlongateCellCenteredValues(dfco, dfto, 0, NDUSTVARS-1, pmb->cis,
+                                               pmb->cie, jl+1, pmb->cje, pmb->cks,
+                                               pmb->cke);
+        for(int k=pmb->ks; k<=pmb->ke; k++) {
+          for(int i=pmb->is; i<=pmb->ie; i++) {
+            int offset = porb->ofc(k,i);
+            int xl = pmb->js-xgh-offset+onx;
+            int xu = pmb->je;
+            const int shift = (offset>0)? 0: -onx;
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+              for(int j=xl; j<=xu; j++) {
+                df_conso(ndv,k,i,j+shift) = dfto(ndv,k,j,i);
+              }
+            }
+          }
+        }
+      } else if(nb==4) {
+        int jl = pmb->cjs-1;
+        int ju = pmb->cje+2+xgh-porb->min_ofc_coarse-onx/2;
+        // TODO(tomo-ono): This part has a problem with "#pragma omp simd"
+        //                 when using the Intel compiler
+        // BufferUtility::UnpackData(buf, dfco, 0, NDUSTVARS-1,
+        //                           il, iu, jl, ju, kl, ku, p);
+        for(int n=0; n<NDUSTVARS; ++n) {
+          for(int k=kl; k<=ku; k++) {
+            for(int j=jl; j<=ju; j++) {
+              for(int i=il; i<=iu; i++) {
+                dfco(n,k,j,i) = buf[p++];
+              }
+            }
+          }
+        }
+        pmb->pmr->ProlongateCellCenteredValues(dfco, dfto, 0, NDUSTVARS-1, pmb->cis,
+                                               pmb->cie, pmb->cjs, ju-1, pmb->cks,
+                                               pmb->cke);
+        for(int k=pmb->ks; k<=pmb->ke; k++) {
+          for(int i=pmb->is; i<=pmb->ie; i++) {
+            int offset = porb->ofc(k,i);
+            int xl = pmb->js;
+            int xu = pmb->je+1+xgh-offset-onx;
+            const int shift = (offset>0)? 2*onx: onx;
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+              for (int j=xl; j<=xu; j++) {
+                df_conso(ndv,k,i,j+shift) = dfto(ndv,k,j,i);
+              }
+            }
+          }
+        }
+      } else {
+        std::stringstream msg;
+        msg << "### FATAL ERROR in OrbitalBoundaryCommunication"
+            << "::SetDustFluidsBufferFromCoarser" << std::endl
+            << "Neighbors are read incorrectly." << std::endl;
+        ATHENA_ERROR(msg);
+      }
+    } else if(porb->orbital_direction == 2) {
+      int &onx = pmb->block_size.nx3;
+      int il, iu, jl, ju;
+      jl = pmb->cjs-1;
+      ju = pmb->cje+1;
+      il = pmb->cis-1;
+      iu = pmb->cie+1;
+      if(nb==0) {
+        int kl = pmb->cks-xgh-porb->max_ofc_coarse+onx/2-1;
+        int ku = pmb->cke+1;
+        // TODO(tomo-ono): This part has a problem with "#pragma omp simd"
+        //                 when using the Intel compiler
+        // BufferUtility::UnpackData(buf, dfco, 0, NDUSTVARS-1,
+        //                           il, iu, jl, ju, kl, ku, p);
+        for(int n=0; n<NDUSTVARS; ++n) {
+          for(int k=kl; k<=ku; k++) {
+            for(int j=jl; j<=ju; j++) {
+              for(int i=il; i<=iu; i++) {
+                dfco(n,k,j,i) = buf[p++];
+              }
+            }
+          }
+        }
+        pmb->pmr->ProlongateCellCenteredValues(dfco, dfto, 0, NDUSTVARS-1, pmb->cis,
+                                               pmb->cie, pmb->cjs, pmb->cje,
+                                               kl+1, pmb->cke);
+        for(int j=pmb->js; j<=pmb->je; j++) {
+          for(int i=pmb->is; i<=pmb->ie; i++) {
+            int offset = porb->ofc(j,i);
+            int xl = pmb->ks-xgh-offset+onx;
+            int xu = pmb->ke;
+            const int shift = (offset>0)? 0: -onx;
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+              for (int k=xl; k<=xu; k++) {
+                df_conso(ndv,j,i,k+shift) = dfto(ndv,k,j,i);
+              }
+            }
+          }
+        }
+      } else if (nb==4) {
+        int kl = pmb->cks-1;
+        int ku = pmb->cke+2+xgh-porb->min_ofc_coarse-onx/2;
+        // TODO(tomo-ono): This part has a problem with "#pragma omp simd"
+        //                 when using the Intel compiler
+        // BufferUtility::UnpackData(buf, dfco, 0, NDUSTVARS-1,
+        //                           il, iu, jl, ju, kl, ku, p);
+        for(int n=0; n<NDUSTVARS; ++n) {
+          for(int k=kl; k<=ku; k++) {
+            for(int j=jl; j<=ju; j++) {
+              for(int i=il; i<=iu; i++) {
+                dfco(n,k,j,i) = buf[p++];
+              }
+            }
+          }
+        }
+        pmb->pmr->ProlongateCellCenteredValues(dfco, dfto, 0, NDUSTVARS-1, pmb->cis,
+                                               pmb->cie, pmb->cjs, pmb->cje,
+                                               pmb->cks, ku-1);
+        for(int j=pmb->js; j<=pmb->je; j++) {
+          for(int i=pmb->is; i<=pmb->ie; i++) {
+            int offset = porb->ofc(j,i);
+            int xl = pmb->ks;
+            int xu = pmb->ke+1+xgh-offset-onx;
+            const int shift = (offset>0)? 2*onx: onx;
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+              for (int k=xl; k<=xu; k++) {
+                df_conso(ndv,j,i,k+shift) = dfto(ndv,k,j,i);
+              }
+            }
+          }
+        }
+      } else {
+        std::stringstream msg;
+        msg << "### FATAL ERROR in OrbitalBoundaryCommunication"
+            << "::SetDustFluidsBufferFromCoarser" << std::endl
+            << "Neighbors are read incorrectly." << std::endl;
+        ATHENA_ERROR(msg);
+      }
+    }
+  }
+  return;
+}
+
+//----------------------------------------------------------------------------------------
+//! \fn void OrbitalBoundaryCommunication::SetDustFluidsBufferFromFiner(
+//!                                 Real *buf, int &p, const int nb)
+//! \brief set dust fluids (passive level)
+void OrbitalBoundaryCommunication::SetDustFluidsBufferFromFiner(
+                            Real *buf, int &p, const int nb) {
+  MeshBlock *pmb = pmy_block_;
+  OrbitalAdvection *porb = pmy_orbital_;
+  AthenaArray<Real> &df_conso  = porb->orbital_df_cons;
+
+  if(porb->orbital_uniform_mesh) { // uniform mesh
+    if(porb->orbital_direction == 1) {
+      int &onx = pmb->block_size.nx2;
+      int hnx1 = pmb->block_size.nx1/2;
+      int hnx3 = pmb->block_size.nx3/2;
+      int il, iu, kl, ku;
+      if (pmb->block_size.nx3>1)  {
+        if (nb%4<2) {
+          kl = pmb->ks;
+          ku = pmb->ke-hnx3;
+        } else {
+          kl = pmb->ks+hnx3;
+          ku = pmb->ke;
+        }
+      } else {
+        if (nb%4>1) {
+          std::stringstream msg;
+          msg << "### FATAL ERROR in OrbitalBoundaryCommunication"
+              << "::SetDustFluidsBufferFromFiner" << std::endl
+              << "Neighbors are read incorrectly." << std::endl;
+          ATHENA_ERROR(msg);
+        }
+        kl = pmb->ks;
+        ku = pmb->ke;
+      }
+      if (nb%2==0) {
+        il = pmb->is;
+        iu = pmb->ie-hnx1;
+      } else {
+        il = pmb->is+hnx1;
+        iu = pmb->ie;
+      }
+      if (nb<4) {
+        for(int k=kl; k<=ku; k++) {
+          for(int i=il; i<=iu; i++) {
+            int offset = porb->ofc(k,i);
+            int xl = pmb->js-xgh-offset+onx;
+            int xu = pmb->je;
+            if (offset<=0) {
+              xl -= onx; xu -= onx;
+            }
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+#pragma omp simd
+              for (int j=xl; j<=xu; j++) {
+                df_conso(ndv,k,i,j) = buf[p++];
+              }
+            }
+          }
+        }
+      } else if (nb<8) {
+        for(int k=kl; k<=ku; k++) {
+          for(int i=il; i<=iu; i++) {
+            int offset = porb->ofc(k,i);
+            int xl = pmb->js+onx;
+            int xu = pmb->je+1+xgh-offset;
+            if (offset>0) {
+              xl += onx; xu += onx;
+            }
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+#pragma omp simd
+              for (int j=xl; j<=xu; j++) {
+                df_conso(ndv,k,i,j) = buf[p++];
+              }
+            }
+          }
+        }
+      } else {
+        std::stringstream msg;
+        msg << "### FATAL ERROR in OrbitalBoundaryCommunication"
+            << "::SetDustFluidsBufferFromFiner" << std::endl
+            << "Neighbors are read incorrectly." << std::endl;
+        ATHENA_ERROR(msg);
+      }
+    } else if(porb->orbital_direction == 2) {
+      int &onx = pmb->block_size.nx3;
+      int hnx1 = pmb->block_size.nx1/2;
+      int hnx2 = pmb->block_size.nx2/2;
+      int il, iu, jl, ju;
+      if (nb%4<2) {
+        jl = pmb->js;
+        ju = pmb->je-hnx2;
+      } else {
+        jl = pmb->js+hnx2;
+        ju = pmb->je;
+      }
+      if (nb%2==0) {
+        il = pmb->is;
+        iu = pmb->ie-hnx1;
+      } else {
+        il = pmb->is+hnx1;
+        iu = pmb->ie;
+      }
+      if (nb<4) {
+        for(int j=jl; j<=ju; j++) {
+          for(int i=il; i<=iu; i++) {
+            int offset = porb->ofc(j,i);
+            int xl = pmb->ks-xgh-offset+onx;
+            int xu = pmb->ke;
+            if (offset<=0) {
+              xl -= onx; xu -= onx;
+            }
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+#pragma omp simd
+              for(int k=xl; k<=xu; k++) {
+                df_conso(ndv,j,i,k) = buf[p++];
+              }
+            }
+          }
+        }
+      } else if(nb<8) {
+        for(int j=jl; j<=ju; j++) {
+          for(int i=il; i<=iu; i++) {
+            int offset = porb->ofc(j,i);
+            int xl = pmb->ks+onx;
+            int xu = pmb->ke+1+xgh-offset;
+            if(offset>0) {
+              xl += onx; xu += onx;
+            }
+            for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
+#pragma omp simd
+              for(int k=xl; k<=xu; k++) {
+                df_conso(ndv,j,i,k) = buf[p++];
+              }
+            }
+          }
+        }
+      } else {
+        std::stringstream msg;
+        msg << "### FATAL ERROR in OrbitalBoundaryCommunication"
+            << "::SetDustFluidsBufferFromFiner" << std::endl
+            << "Neighbors are read incorrectly." << std::endl;
+        ATHENA_ERROR(msg);
+      }
+    }
+  }
+  return;
+}
+
 
 //----------------------------------------------------------------------------------------
 //! \fn void OrbitalBoundaryCommunication::LoadScalarBufferSameLevel(
