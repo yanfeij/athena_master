@@ -22,6 +22,7 @@
 #include "../athena.hpp"
 #include "../athena_arrays.hpp"
 #include "../coordinates/coordinates.hpp"
+#include "../dustfluids/dustfluids.hpp"
 #include "../field/field.hpp"
 #include "../globals.hpp"
 #include "../gravity/gravity.hpp"
@@ -137,6 +138,11 @@ void ATHDF5Output::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag) {
       if (pmb->pgrav->output_defect)
         num_variables[n_dataset] += 1;
     }
+
+    // Dust Fluids
+    if (NDUSTFLUIDS > 0)
+      num_variables[n_dataset] += NDUSTVARS;
+
     if(NR_RADIATION_ENABLED || IM_RADIATION_ENABLED)
       num_variables[n_dataset] += 20 *pmb->pnrrad->nfreq;
 

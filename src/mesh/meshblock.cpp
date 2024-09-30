@@ -494,19 +494,6 @@ MeshBlock::MeshBlock(int igid, int ilid, Mesh *pm, ParameterInput *pin,
     os += pfield->b.x3f.GetSizeInBytes();
   }
 
-  // (conserved variable) Dust Fluids:
-  if (NDUSTFLUIDS > 0) {
-    std::memcpy(pdustfluids->df_cons.data(), &(mbdata[os]), pdustfluids->df_cons.GetSizeInBytes());
-    // load it into the other memory register(s) too
-    std::memcpy(pdustfluids->df_cons1.data(), &(mbdata[os]), pdustfluids->df_cons1.GetSizeInBytes());
-    os += pdustfluids->df_cons.GetSizeInBytes();
-    if (pdustfluids->dfdif.dustfluids_diffusion_defined) {
-      std::memcpy(pdustfluids->dfccdif.diff_mom_cc.data(), &(mbdata[os]),
-                       pdustfluids->dfccdif.diff_mom_cc.GetSizeInBytes());
-      os += pdustfluids->dfccdif.diff_mom_cc.GetSizeInBytes();
-    }
-  }
-
 
   if (NR_RADIATION_ENABLED || IM_RADIATION_ENABLED) {
     if (pnrrad->restart_from_gray) {
@@ -556,6 +543,22 @@ MeshBlock::MeshBlock(int igid, int ilid, Mesh *pm, ParameterInput *pin,
     std::memcpy(pcr->u_cr1.data(), &(mbdata[os]), pcr->u_cr1.GetSizeInBytes());
     os += pcr->u_cr.GetSizeInBytes();
   }
+
+  // (conserved variable) Dust Fluids:
+  if (NDUSTFLUIDS > 0) {
+    std::memcpy(pdustfluids->df_cons.data(), &(mbdata[os]), pdustfluids->df_cons.GetSizeInBytes());
+    // load it into the other memory register(s) too
+    std::memcpy(pdustfluids->df_cons1.data(), &(mbdata[os]), pdustfluids->df_cons1.GetSizeInBytes());
+    os += pdustfluids->df_cons.GetSizeInBytes();
+    if (pdustfluids->dfdif.dustfluids_diffusion_defined) {
+      std::memcpy(pdustfluids->dfccdif.diff_mom_cc.data(), &(mbdata[os]),
+                       pdustfluids->dfccdif.diff_mom_cc.GetSizeInBytes());
+      os += pdustfluids->dfccdif.diff_mom_cc.GetSizeInBytes();
+    }
+  }
+
+
+
   // (conserved variable) Passive scalars:
   if (NSCALARS > 0) {
     std::memcpy(pscalars->s.data(), &(mbdata[os]), pscalars->s.GetSizeInBytes());

@@ -21,6 +21,7 @@
 // Athena++ headers
 #include "../athena.hpp"
 #include "../athena_arrays.hpp"
+#include "../dustfluids/dustfluids.hpp"
 #include "../cr/cr.hpp"
 #include "../field/field.hpp"
 #include "../globals.hpp"
@@ -187,6 +188,19 @@ void RestartOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool force_wr
     if (CR_ENABLED) {
       std::memcpy(pdata,pmb->pcr->u_cr.data(),pmb->pcr->u_cr.GetSizeInBytes());
       pdata += pmb->pcr->u_cr.GetSizeInBytes();
+    }
+
+    // (conserved variable) Dust Fluids:
+    if (NDUSTFLUIDS > 0) {
+      AthenaArray<Real> &cons_df = pmb->pdustfluids->df_cons;
+      std::memcpy(pdata, cons_df.data(), cons_df.GetSizeInBytes());
+      pdata += cons_df.GetSizeInBytes();
+
+      if (pmb->pdustfluids->dfdif.dustfluids_diffusion_defined) {
+        AthenaArray<Real> &cons_df_dif = pmb->pdustfluids->dfccdif.diff_mom_cc;
+        std::memcpy(pdata, cons_df_dif.data(), cons_df_dif.GetSizeInBytes());
+        pdata += cons_df_dif.GetSizeInBytes();
+      }
     }
 
     // (conserved variable) Passive scalars:

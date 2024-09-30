@@ -90,6 +90,7 @@
 #include "../athena.hpp"
 #include "../athena_arrays.hpp"
 #include "../coordinates/coordinates.hpp"
+#include "../dustfluids/dustfluids.hpp"
 #include "../cr/cr.hpp"
 #include "../field/field.hpp"
 #include "../gravity/gravity.hpp"
@@ -348,6 +349,7 @@ Outputs::~Outputs() {
 void OutputType::LoadOutputData(MeshBlock *pmb) {
   Hydro *phyd = pmb->phydro;
   Field *pfld = pmb->pfield;
+  DustFluids *pdfs = pmb->pdustfluids;
   NRRadiation *prad=pmb->pnrrad;
   CosmicRay *pcr=pmb->pcr;
   PassiveScalars *psclr = pmb->pscalars;
@@ -581,6 +583,205 @@ void OutputType::LoadOutputData(MeshBlock *pmb) {
       }
     }
   } // endif (SELF_GRAVITY_ENABLED)
+
+  if (NDUSTFLUIDS > 0) {
+    if(porb->orbital_advection_defined && !output_params.orbital_system_output)
+      porb->ResetOrbitalSystemConversionFlag();
+
+    for (int n=0; n<NDUSTFLUIDS; n++) {
+      int dust_id = n;
+      int rho_id  = 4*dust_id;
+      int v1_id   = rho_id  + 1;
+      int v2_id   = rho_id  + 2;
+      int v3_id   = rho_id  + 3;
+      int index   = dust_id + 1;
+
+      std::string dust_rho_str     = "dust_" + std::to_string(index) + "_rho";
+      std::string dust_vel_str     = "dust_" + std::to_string(index) + "_vel";
+      std::string dust_vel1_str    = "dust_" + std::to_string(index) + "_vel1";
+      std::string dust_vel2_str    = "dust_" + std::to_string(index) + "_vel2";
+      std::string dust_vel3_str    = "dust_" + std::to_string(index) + "_vel3";
+      std::string dust_vel_xyz_str = "dust_" + std::to_string(index) + "_xyz_vel";
+
+      std::string dust_den_str     = "dust_" + std::to_string(index) + "_dens";
+      std::string dust_mom_str     = "dust_" + std::to_string(index) + "_mom";
+      std::string dust_mom1_str    = "dust_" + std::to_string(index) + "_mom1";
+      std::string dust_mom2_str    = "dust_" + std::to_string(index) + "_mom2";
+      std::string dust_mom3_str    = "dust_" + std::to_string(index) + "_mom3";
+      std::string dust_mom_xyz_str = "dust_" + std::to_string(index) + "_xyz_mom";
+
+      if (ContainVariable(output_params.variable, dust_den_str) ||
+          ContainVariable(output_params.variable, "cons")) {
+        pod = new OutputData;
+        pod->type = "SCALARS";
+        pod->name = dust_den_str;
+        pod->data.InitWithShallowSlice(pdfs->df_cons, 4, rho_id, 1);
+        AppendOutputDataNode(pod);
+        num_vars_++;
+      }
+
+      // momentum vector
+      if (ContainVariable(output_params.variable, dust_mom_str) ||
+          ContainVariable(output_params.variable, "cons")) {
+        pod = new OutputData;
+        pod->type = "VECTORS";
+        pod->name = dust_mom_str;
+        if(porb->orbital_advection_defined && !output_params.orbital_system_output) {
+          porb->ResetOrbitalSystemConversionFlag();
+          porb->ConvertOrbitalSystemDustFluids(dust_id, pdfs->df_prim, pdfs->df_cons, OrbitalTransform::cons);
+          pod->data.InitWithShallowSlice(porb->df_cons_orb, 4, v1_id, 3);
+        } else {
+          pod->data.InitWithShallowSlice(pdfs->df_cons, 4, v1_id, 3);
+        }
+        AppendOutputDataNode(pod);
+        num_vars_ += 3;
+        if (output_params.cartesian_vector) {
+          AthenaArray<Real> src;
+          if(porb->orbital_advection_defined
+             && !output_params.orbital_system_output) {
+            src.InitWithShallowSlice(porb->df_cons_orb, 4, v1_id, 3);
+          } else {
+            src.InitWithShallowSlice(pdfs->df_cons, 4, v1_id, 3);
+          }
+          pod = new OutputData;
+          pod->type = "VECTORS";
+          pod->name = dust_mom_xyz_str;
+          pod->data.NewAthenaArray(3, pdfs->df_cons.GetDim3(), pdfs->df_cons.GetDim2(),
+                                   pdfs->df_cons.GetDim1());
+          CalculateCartesianVector(src, pod->data, pmb->pcoord);
+          AppendOutputDataNode(pod);
+          num_vars_ += 3;
+        }
+      }
+
+      if (ContainVariable(output_params.variable, dust_mom1_str)) {
+        pod = new OutputData;
+        pod->type = "SCALARS";
+        pod->name = dust_mom1_str;
+        pod->data.InitWithShallowSlice(pdfs->df_cons, 4, v1_id, 1);
+        AppendOutputDataNode(pod);
+        num_vars_++;
+      }
+
+      if (ContainVariable(output_params.variable, dust_mom2_str)) {
+        pod = new OutputData;
+        pod->type = "SCALARS";
+        pod->name = dust_mom2_str;
+        pod->data.InitWithShallowSlice(pdfs->df_cons, 4, v2_id, 1);
+        if(porb->orbital_advection_defined && !output_params.orbital_system_output
+           && porb->orbital_direction == 1) {
+          porb->ResetOrbitalSystemConversionFlag();
+          porb->ConvertOrbitalSystemDustFluids(dust_id, pdfs->df_prim, pdfs->df_cons, OrbitalTransform::cons);
+          pod->data.InitWithShallowSlice(porb->df_cons_orb, 4, v2_id, 1);
+        } else {
+          pod->data.InitWithShallowSlice(pdfs->df_cons, 4, v2_id, 1);
+        }
+        AppendOutputDataNode(pod);
+        num_vars_++;
+      }
+
+      if (ContainVariable(output_params.variable, dust_mom3_str)) {
+        pod = new OutputData;
+        pod->type = "SCALARS";
+        pod->name = dust_mom3_str;
+        if(porb->orbital_advection_defined && !output_params.orbital_system_output
+           && porb->orbital_direction == 2) {
+          porb->ResetOrbitalSystemConversionFlag();
+          porb->ConvertOrbitalSystemDustFluids(dust_id, pdfs->df_prim, pdfs->df_cons, OrbitalTransform::cons);
+          pod->data.InitWithShallowSlice(porb->df_cons_orb, 4, v3_id, 1);
+        } else {
+          pod->data.InitWithShallowSlice(pdfs->df_cons, 4, v3_id, 1);
+        }
+        AppendOutputDataNode(pod);
+        num_vars_++;
+      }
+
+      if (ContainVariable(output_params.variable, dust_rho_str) ||
+          ContainVariable(output_params.variable, "prim")) {
+        pod = new OutputData;
+        pod->type = "SCALARS";
+        pod->name = dust_rho_str;
+        pod->data.InitWithShallowSlice(pdfs->df_prim, 4, rho_id, 1);
+        AppendOutputDataNode(pod);
+        num_vars_++;
+      }
+
+      // velocity vector
+      if (ContainVariable(output_params.variable, dust_vel_str) ||
+          ContainVariable(output_params.variable, "prim")) {
+        pod = new OutputData;
+        pod->type = "VECTORS";
+        pod->name = dust_vel_str;
+        if(porb->orbital_advection_defined && !output_params.orbital_system_output) {
+          porb->ResetOrbitalSystemConversionFlag();
+          porb->ConvertOrbitalSystemDustFluids(dust_id, pdfs->df_prim, pdfs->df_cons, OrbitalTransform::prim);
+          pod->data.InitWithShallowSlice(porb->df_prim_orb, 4, v1_id, 3);
+        } else {
+          pod->data.InitWithShallowSlice(pdfs->df_prim, 4, v1_id, 3);
+        }
+        AppendOutputDataNode(pod);
+        num_vars_ += 3;
+        if (output_params.cartesian_vector) {
+          AthenaArray<Real> src;
+          if(porb->orbital_advection_defined
+             && !output_params.orbital_system_output) {
+            src.InitWithShallowSlice(porb->df_prim_orb, 4, v1_id, 3);
+          } else {
+            src.InitWithShallowSlice(pdfs->df_prim, 4, v1_id, 3);
+          }
+          pod = new OutputData;
+          pod->type = "VECTORS";
+          pod->name = dust_vel_xyz_str;
+          pod->data.NewAthenaArray(3, pdfs->df_prim.GetDim3(), pdfs->df_prim.GetDim2(),
+                                   pdfs->df_prim.GetDim1());
+          CalculateCartesianVector(src, pod->data, pmb->pcoord);
+          AppendOutputDataNode(pod);
+          num_vars_ += 3;
+        }
+      }
+
+      if (ContainVariable(output_params.variable, dust_vel1_str)) {
+        pod = new OutputData;
+        pod->type = "SCALARS";
+        pod->name = dust_vel1_str;
+        pod->data.InitWithShallowSlice(pdfs->df_prim, 4, v1_id, 1);
+        AppendOutputDataNode(pod);
+        num_vars_++;
+      }
+
+      if (ContainVariable(output_params.variable, dust_vel2_str)) {
+        pod = new OutputData;
+        pod->type = "SCALARS";
+        pod->name = dust_vel2_str;
+        if(porb->orbital_advection_defined && !output_params.orbital_system_output
+           && porb->orbital_direction == 1) {
+          porb->ResetOrbitalSystemConversionFlag();
+          porb->ConvertOrbitalSystemDustFluids(dust_id, pdfs->df_prim, pdfs->df_cons, OrbitalTransform::prim);
+          pod->data.InitWithShallowSlice(porb->df_prim_orb, 4, v2_id, 1);
+        } else {
+          pod->data.InitWithShallowSlice(pdfs->df_prim, 4, v2_id, 1);
+        }
+        AppendOutputDataNode(pod);
+        num_vars_++;
+      }
+
+      if (ContainVariable(output_params.variable, dust_vel3_str)) {
+        pod = new OutputData;
+        pod->type = "SCALARS";
+        pod->name = dust_vel3_str;
+        if(porb->orbital_advection_defined && !output_params.orbital_system_output
+           && porb->orbital_direction == 2) {
+          porb->ResetOrbitalSystemConversionFlag();
+          porb->ConvertOrbitalSystemDustFluids(dust_id, pdfs->df_prim, pdfs->df_cons, OrbitalTransform::prim);
+          pod->data.InitWithShallowSlice(porb->df_prim_orb, 4, v3_id, 1);
+        } else {
+          pod->data.InitWithShallowSlice(pdfs->df_prim, 4, v3_id, 1);
+        }
+        AppendOutputDataNode(pod);
+        num_vars_++;
+      }
+    }
+  }
 
   if (NSCALARS > 0) {
     std::string root_name_cons = "s";

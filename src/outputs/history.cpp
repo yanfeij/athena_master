@@ -24,6 +24,7 @@
 #include "../athena.hpp"
 #include "../athena_arrays.hpp"
 #include "../coordinates/coordinates.hpp"
+#include "../dustfluids/dustfluids.hpp"
 #include "../cr/cr.hpp"
 #include "../field/field.hpp"
 #include "../globals.hpp"
@@ -40,7 +41,7 @@
 // "3" for 1-KE, 2-KE, 3-KE additional columns (come before tot-E)
 // 14 radiation variables, 4 cosmic ray variables
 #define NHISTORY_VARS ((NHYDRO) + (SELF_GRAVITY_ENABLED > 0) + (NFIELD) + 3 + (NSCALARS) \
-                      +(NRAD) + (NCR))
+                      +(NRAD) + (NCR) + (NDUSTVARS))
 
 //----------------------------------------------------------------------------------------
 //! \fn void HistoryOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag)
@@ -75,6 +76,7 @@ void HistoryOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag) {
     pmb = pm->my_blocks(b);
     Hydro *phyd = pmb->phydro;
     Field *pfld = pmb->pfield;
+    DustFluids *pdfs  = pmb->pdustfluids;
     PassiveScalars *psclr = pmb->pscalars;
     Gravity *pgrav = pmb->pgrav;
     OrbitalAdvection *porb = pmb->porb;
@@ -86,6 +88,13 @@ void HistoryOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag) {
     if(porb->orbital_advection_defined
        && !output_params.orbital_system_output) {
       porb->ConvertOrbitalSystem(phyd->w, phyd->u, OrbitalTransform::cons);
+      if (NDUSTFLUIDS > 0) {
+        for (int dust_id=0; dust_id<NDUSTFLUIDS; ++dust_id) {
+          pmb->porb->ResetOrbitalSystemConversionFlag(); // TODO
+          porb->ConvertOrbitalSystemDustFluids(dust_id, pdfs->df_prim, pdfs->df_cons,
+                                               OrbitalTransform::cons);
+        }
+      }
       for (int k=pmb->ks; k<=pmb->ke; ++k) {
         for (int j=pmb->js; j<=pmb->je; ++j) {
           pmb->pcoord->CellVolume(k, j, pmb->is, pmb->ie, vol);
@@ -125,6 +134,12 @@ void HistoryOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag) {
               hst_data[prev_out] += vol(i)*0.5*bcc1*bcc1;
               hst_data[prev_out + 1] += vol(i)*0.5*bcc2*bcc2;
               hst_data[prev_out + 2] += vol(i)*0.5*bcc3*bcc3;
+            }
+            // (conserved variable) Dust Fluids:
+            for (int n=0; n<NDUSTVARS; n++) {
+              Real& df_cons = porb->df_cons_orb(n,k,j,i);
+              constexpr int prev_out = NHYDRO + 3 + (SELF_GRAVITY_ENABLED > 0) + NFIELD;
+              hst_data[prev_out + n] += vol(i)*df_cons;
             }
             // (conserved variable) Passive scalars:
             for (int n=0; n<NSCALARS; n++) {
@@ -219,6 +234,12 @@ void HistoryOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag) {
               hst_data[prev_out] += vol(i)*0.5*bcc1*bcc1;
               hst_data[prev_out + 1] += vol(i)*0.5*bcc2*bcc2;
               hst_data[prev_out + 2] += vol(i)*0.5*bcc3*bcc3;
+            }
+            // (conserved variable) Dust Fluids:
+            for (int n=0; n<NDUSTVARS; n++) {
+              Real& df_cons = pdfs->df_cons(n,k,j,i);
+              constexpr int prev_out = NHYDRO + 3 + (SELF_GRAVITY_ENABLED > 0) + NFIELD;
+              hst_data[prev_out + n] += vol(i)*df_cons;
             }
             // (conserved variable) Passive scalars:
             for (int n=0; n<NSCALARS; n++) {
@@ -370,6 +391,21 @@ void HistoryOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag) {
         std::fprintf(pfile,"[%d]=1-ME    ", iout++);
         std::fprintf(pfile,"[%d]=2-ME    ", iout++);
         std::fprintf(pfile,"[%d]=3-ME    ", iout++);
+      }
+      for (int n=0; n<NDUSTVARS; n++) {
+        int dust_index     = n/4 + 1;
+        int dust_var_index = n%4;
+        switch ( dust_var_index )
+        {
+          case 1: std::fprintf(pfile,  "[%d]=df-%d-mom1 ", iout++, dust_index);
+            continue;
+          case 2: std::fprintf(pfile,  "[%d]=df-%d-mom2 ", iout++, dust_index);
+            continue;
+          case 3: std::fprintf(pfile,  "[%d]=df-%d-mom3 ", iout++, dust_index);
+            continue;
+          default: std::fprintf(pfile, "[%d]=df-%d-mass ", iout++, dust_index);
+            continue;
+        }
       }
       for (int n=0; n<NSCALARS; n++) {
         std::fprintf(pfile,"[%d]=%d-scalar    ", iout++, n);
