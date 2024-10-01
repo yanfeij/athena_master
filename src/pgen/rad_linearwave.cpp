@@ -129,18 +129,21 @@ void Mesh::UserWorkAfterLoop(ParameterInput *pin) {
   }
   Real rms_err = 0.0, max_max_over_l1=0.0;
 
+
+
+
 #ifdef MPI_PARALLEL
-  if (Globals::my_rank == 0) {
-    MPI_Reduce(MPI_IN_PLACE,&l1_err,totnum,MPI_ATHENA_REAL,MPI_SUM,0,
+if (Globals::my_rank == 0) {
+  MPI_Reduce(MPI_IN_PLACE,l1_err,totnum,MPI_ATHENA_REAL,MPI_SUM,0,
                MPI_COMM_WORLD);
-    MPI_Reduce(MPI_IN_PLACE,&max_err,totnum,MPI_ATHENA_REAL,MPI_MAX,0,
+  MPI_Reduce(MPI_IN_PLACE,max_err,totnum,MPI_ATHENA_REAL,MPI_MAX,0,
                MPI_COMM_WORLD);
-  } else {
-    MPI_Reduce(&l1_err,&l1_err,totnum,MPI_ATHENA_REAL,MPI_SUM,0,
+} else {
+  MPI_Reduce(l1_err,0,totnum,MPI_ATHENA_REAL,MPI_SUM,0,
                MPI_COMM_WORLD);
-    MPI_Reduce(&max_err,&max_err,totnum,MPI_ATHENA_REAL,MPI_MAX,0,
+  MPI_Reduce(max_err,0,totnum,MPI_ATHENA_REAL,MPI_MAX,0,
                MPI_COMM_WORLD);
-  }
+}
 #endif
 
   // only the root process outputs the data
