@@ -50,6 +50,8 @@ class Coordinates;
 class ParameterInput;
 class HydroDiffusion;
 class FieldDiffusion;
+class DustFluids;
+class DustFluidsDiffusion;
 struct MGCoordinates;
 class OrbitalAdvection;
 class NRRadiation;
@@ -169,6 +171,8 @@ enum CoordinateDirection {X1DIR=0, X2DIR=1, X3DIR=2};
 enum class BoundaryQuantity {cc, fc, cc_flcor, fc_flcor, mggrav,
                              mggrav_f, orbital_cc, orbital_fc};
 enum class HydroBoundaryQuantity {cons, prim};
+enum class DustFluidsBoundaryQuantity {cons_df, prim_df};
+enum class DustDiffusionBoundaryQuantity {cons_diff};
 enum class BoundaryCommSubset {mesh_init, gr_amr, all, orbital, radiation, radhydro};
 // TODO(felker): consider generalizing/renaming to QuantityFormulation
 enum class FluidFormulation {evolve, background, disabled}; // rename background -> fixed?
@@ -184,6 +188,9 @@ using BValFunc = void (*)(
     int is, int ie, int js, int je, int ks, int ke, int ngh);
 using AMRFlagFunc = int (*)(MeshBlock *pmb);
 using MeshGenFunc = Real (*)(Real x, RegionSize rs);
+using DustStoppingTimeFunc = void (*)(
+       MeshBlock *pmb, const Real time, const AthenaArray<Real> &w,
+       const AthenaArray<Real> &prim_df, AthenaArray<Real> &stopping_time);
 using SrcTermFunc = void (*)(
     MeshBlock *pmb, const Real time, const Real dt, const AthenaArray<Real> &prim,
     const AthenaArray<Real> &prim_scalar, const AthenaArray<Real> &bcc,
@@ -206,6 +213,12 @@ using ConductionCoeffFunc = void (*)(
     HydroDiffusion *phdif, MeshBlock *pmb,
     const AthenaArray<Real> &w, const AthenaArray<Real> &bc,
     int is, int ie, int js, int je, int ks, int ke);
+using DustDiffusionCoeffFunc = void (*)(
+     DustFluids *pdf, MeshBlock *pmb,
+     const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
+     const AthenaArray<Real> &stopping_time,
+     AthenaArray<Real> &nu_dust, AthenaArray<Real> &cs_dust,
+     int is, int ie, int js, int je, int ks, int ke);
 using FieldDiffusionCoeffFunc = void (*)(
     FieldDiffusion *pfdif, MeshBlock *pmb,
     const AthenaArray<Real> &w,
