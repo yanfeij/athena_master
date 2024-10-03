@@ -482,7 +482,8 @@ void BoundaryValues::ApplyPhysicalBoundariesOnCoarseLevel(
     if (apply_bndry_fn_[BoundaryFace::inner_x1]) {
       DispatchBoundaryFunctions(pmb, pmr->pcoarsec, time, dt,
                                 pmb->cis, pmb->cie, sj, ej, sk, ek, 1,
-                                ph->coarse_prim_, pf->coarse_b_,
+                                ph->coarse_prim_, pdf->coarse_df_prim_,
+                                pf->coarse_b_,
                                 pnrrad->coarse_ir_, pcr->coarse_cr_,
                                 BoundaryFace::inner_x1,
                                 bvars_subset);
@@ -490,7 +491,8 @@ void BoundaryValues::ApplyPhysicalBoundariesOnCoarseLevel(
     if (apply_bndry_fn_[BoundaryFace::outer_x1]) {
       DispatchBoundaryFunctions(pmb, pmr->pcoarsec, time, dt,
                                 pmb->cis, pmb->cie, sj, ej, sk, ek, 1,
-                                ph->coarse_prim_, pf->coarse_b_,
+                                ph->coarse_prim_, pdf->coarse_df_prim_,
+                                pf->coarse_b_,
                                 pnrrad->coarse_ir_, pcr->coarse_cr_,
                                 BoundaryFace::outer_x1,
                                 bvars_subset);
@@ -500,7 +502,8 @@ void BoundaryValues::ApplyPhysicalBoundariesOnCoarseLevel(
     if (apply_bndry_fn_[BoundaryFace::inner_x2]) {
       DispatchBoundaryFunctions(pmb, pmr->pcoarsec, time, dt,
                                 si, ei, pmb->cjs, pmb->cje, sk, ek, 1,
-                                ph->coarse_prim_, pf->coarse_b_,
+                                ph->coarse_prim_, pdf->coarse_df_prim_,
+                                pf->coarse_b_,
                                 pnrrad->coarse_ir_, pcr->coarse_cr_,
                                 BoundaryFace::inner_x2,
                                 bvars_subset);
@@ -515,7 +518,8 @@ void BoundaryValues::ApplyPhysicalBoundariesOnCoarseLevel(
     if (apply_bndry_fn_[BoundaryFace::outer_x2]) {
       DispatchBoundaryFunctions(pmb, pmr->pcoarsec, time, dt,
                                 si, ei, pmb->cjs, pmb->cje, sk, ek, 1,
-                                ph->coarse_prim_, pf->coarse_b_,
+                                ph->coarse_prim_, pdf->coarse_df_prim_,
+                                pf->coarse_b_,
                                 pnrrad->coarse_ir_, pcr->coarse_cr_,
                                 BoundaryFace::outer_x2,
                                 bvars_subset);
@@ -531,7 +535,8 @@ void BoundaryValues::ApplyPhysicalBoundariesOnCoarseLevel(
     if (apply_bndry_fn_[BoundaryFace::inner_x3]) {
       DispatchBoundaryFunctions(pmb, pmr->pcoarsec, time, dt,
                                 si, ei, sj, ej, pmb->cks, pmb->cke, 1,
-                                ph->coarse_prim_, pf->coarse_b_,
+                                ph->coarse_prim_, pdf->coarse_df_prim_,
+                                pf->coarse_b_,
                                 pnrrad->coarse_ir_, pcr->coarse_cr_,
                                 BoundaryFace::inner_x3,
                                 bvars_subset);
@@ -548,7 +553,8 @@ void BoundaryValues::ApplyPhysicalBoundariesOnCoarseLevel(
     if (apply_bndry_fn_[BoundaryFace::outer_x3]) {
       DispatchBoundaryFunctions(pmb, pmr->pcoarsec, time, dt,
                                 si, ei, sj, ej, pmb->cks, pmb->cke, 1,
-                                ph->coarse_prim_, pf->coarse_b_,
+                                ph->coarse_prim_, pdf->coarse_df_prim_,
+                                pf->coarse_b_,
                                 pnrrad->coarse_ir_, pcr->coarse_cr_,
                                 BoundaryFace::outer_x3,
                                 bvars_subset);

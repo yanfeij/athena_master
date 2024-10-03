@@ -505,7 +505,8 @@ void BoundaryValues::ApplyPhysicalBoundaries(const Real time, const Real dt,
   if (apply_bndry_fn_[BoundaryFace::inner_x1]) {
     DispatchBoundaryFunctions(pmb, pco, time, dt,
                               pmb->is, pmb->ie, bjs, bje, bks, bke, NGHOST,
-                              ph->w, pf->b, prad->ir, pcr->u_cr,
+                              ph->w, pdf->df_prim,
+                              pf->b, prad->ir, pcr->u_cr,
                               BoundaryFace::inner_x1, bvars_subset);
     // KGF: COUPLING OF QUANTITIES (must be manually specified)
     if (MAGNETIC_FIELDS_ENABLED) {
@@ -690,12 +691,12 @@ void BoundaryValues::DispatchBoundaryFunctions(
     AthenaArray<Real> &u_cr,  BoundaryFace face,
     std::vector<BoundaryVariable *> bvars_subset) {
   if (block_bcs[face] ==  BoundaryFlag::user) {  // user-enrolled BCs
-    pmy_mesh_->BoundaryFunction_[face](pmb, pco, prim, b, time, dt,
+    pmy_mesh_->BoundaryFunction_[face](pmb, pco, prim, prim_df, b, time, dt,
                                        il, iu, jl, ju, kl, ku, NGHOST);
 
     // user-defined  boundary for radiation
     if ((NR_RADIATION_ENABLED || IM_RADIATION_ENABLED)) {
-      pmy_mesh_->RadBoundaryFunc_[face](pmb,pco,pmb->pnrrad,prim,b, ir,time,dt,
+      pmy_mesh_->RadBoundaryFunc_[face](pmb,pco,pmb->pnrrad,prim, b, ir,time,dt,
                                              il,iu,jl,ju,kl,ku,NGHOST);
     }
 
