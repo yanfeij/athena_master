@@ -240,6 +240,7 @@ class BoundaryValues : public BoundaryBase, //public BoundaryPhysics,
   friend class CellCenteredBoundaryVariable;
   friend class HydroBoundaryVariable;  // needed for shearing box quantities
   friend class DustFluidsBoundaryVariable;    // needed for shearing box quantities
+  friend class DustDiffusionBoundaryVariable; // needed for shearing box quantities
   friend class RadBoundaryVariable; // needed for radiation boundary condition
 };
 #endif // BVALS_BVALS_HPP_

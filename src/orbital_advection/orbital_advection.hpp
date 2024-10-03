@@ -48,10 +48,12 @@ class OrbitalAdvection{
   ~OrbitalAdvection();
 
   void InitializeOrbitalAdvection();
-  void SetOrbitalAdvectionCC(const AthenaArray<Real> &u, const AthenaArray<Real> &s);
+  void SetOrbitalAdvectionCC(const AthenaArray<Real> &u,
+                             const AthenaArray<Real> &cons_df,
+                             const AthenaArray<Real> &s);
   void SetOrbitalAdvectionFC(const FaceField &b);
   void CalculateOrbitalAdvectionCC(const Real dt, AthenaArray<Real> &u,
-                                   AthenaArray<Real> &s);
+                     AthenaArray<Real> &cons_df, AthenaArray<Real> &s);
   void CalculateOrbitalAdvectionFC(const Real dt, EdgeField &e);
   void ConvertOrbitalSystem(const AthenaArray<Real> &w0, const AthenaArray<Real> &u0,
                             const OrbitalTransform trans);
@@ -92,6 +94,8 @@ class OrbitalAdvection{
 
   // TODO(tomo-ono): Consider replace these buffers.
   AthenaArray<Real> w_orb, u_orb; // buffer for orbital advection system output
+  AthenaArray<Real> df_prim_orb, df_cons_orb; // buffer for orbital advection system output for dust fluids
+
 
   OrbitalBoundaryCommunication *orb_bc;
 
@@ -133,7 +137,7 @@ class OrbitalAdvection{
   Real dx;
 
   // orbital blocks with two meshblock orbital length for variables
-  AthenaArray<Real> orbital_cons, orbital_scalar;
+  AthenaArray<Real> orbital_cons, orbital_df_cons, orbital_scalar;
   AthenaArray<Real> orbital_b1, orbital_b2;
 
   // For Orbital Remapping
@@ -143,6 +147,7 @@ class OrbitalAdvection{
   AthenaArray<int>  ofc_coarse, off_coarse[2];
 
   AthenaArray<Real> u_coarse_send, u_coarse_recv, u_temp;
+  AthenaArray<Real> df_cons_coarse_send, df_cons_coarse_recv, df_cons_temp;
   AthenaArray<Real> s_coarse_send, s_coarse_recv, s_temp;
   AthenaArray<Real> b1_coarse_send, b2_coarse_send;
   FaceField b_temp, b_coarse_recv;
