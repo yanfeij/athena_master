@@ -19,10 +19,12 @@
 #include "../../athena.hpp"
 #include "../../athena_arrays.hpp"
 #include "../dustfluids.hpp"
+#include "../../hydro/hydro.hpp"
 
 // Forward declarations
 class DustFluids;
 class ParameterInput;
+class Hydro;
 
 //! \class DustGasDrag
 //! \brief data and functions for drags between dust and gas

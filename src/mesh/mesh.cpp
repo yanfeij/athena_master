@@ -1704,6 +1704,7 @@ void Mesh::Initialize(int res_flag, ParameterInput *pin) {
       // Now do prolongation, compute primitives, apply BCs
       Hydro *ph;
       Field *pf;
+      DustFluids *pdf;
       PassiveScalars *ps;
 #pragma omp for private(pmb,pbval,ph,pf,ps)
       for (int i=0; i<nblocal; ++i) {

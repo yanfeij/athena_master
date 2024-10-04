@@ -231,6 +231,12 @@ class Reconstruction {
   AthenaArray<Real> scr1_ni_, scr2_ni_, scr3_ni_, scr4_ni_, scr5_ni_;
   AthenaArray<Real> scr6_ni_, scr7_ni_, scr8_ni_;
 
+  AthenaArray<Real> scr01_i_df_, scr02_i_df_, scr03_i_df_, scr04_i_df_, scr05_i_df_;
+  AthenaArray<Real> scr06_i_df_, scr07_i_df_, scr08_i_df_, scr09_i_df_, scr10_i_df_;
+  AthenaArray<Real> scr11_i_df_, scr12_i_df_, scr13_i_df_, scr14_i_df_;
+  AthenaArray<Real> scr1_ni_df_, scr2_ni_df_, scr3_ni_df_, scr4_ni_df_, scr5_ni_df_;
+  AthenaArray<Real> scr6_ni_df_, scr7_ni_df_, scr8_ni_df_;
+
   // scratch arrays for arrays with different ordering
   int nvar_;// the maximum numver of variables for reconstruction
   AthenaArray<Real> scr1_in_, scr2_in_, scr3_in_, scr4_in_, scr5_in_;

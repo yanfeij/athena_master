@@ -34,8 +34,8 @@
 //!                            AthenaArray<Real> &u, AthenaArray<Real> &s)
 //! \brief update hydro & passive scalars using orbital advection scheme
 
-void OrbitalAdvection::CalculateOrbitalAdvectionCC(const Real dt,
-                                AthenaArray<Real> &u, AthenaArray<Real> &s) {
+void OrbitalAdvection::CalculateOrbitalAdvectionCC(const Real dt, AthenaArray<Real> &u,
+                      AthenaArray<Real> &cons_df, AthenaArray<Real> &s) {
   if (!orbital_advection_active) return;
   int is = pmb_->is, ie = pmb_->ie;
   int js = pmb_->js, je = pmb_->je;

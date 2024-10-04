@@ -245,6 +245,17 @@ Reconstruction::Reconstruction(MeshBlock *pmb, ParameterInput *pin) :
   scr3_in_.NewAthenaArray(nvar_, nc1);
   scr4_in_.NewAthenaArray(nvar_, nc1);
 
+  if (NDUSTFLUIDS > 0) {
+    scr01_i_df_.NewAthenaArray(nc1);
+    scr02_i_df_.NewAthenaArray(nc1);
+
+    scr1_ni_df_.NewAthenaArray(NDUSTVARS, nc1);
+    scr2_ni_df_.NewAthenaArray(NDUSTVARS, nc1);
+    scr3_ni_df_.NewAthenaArray(NDUSTVARS, nc1);
+    scr4_ni_df_.NewAthenaArray(NDUSTVARS, nc1);
+  }
+
+
   // temporary array for reconstruction in angular space
   scr1_nn_.NewAthenaArray(nvar_+2*NGHOST,nvar_+2*NGHOST);
   scr2_nn_.NewAthenaArray(nvar_+2*NGHOST,nvar_+2*NGHOST);

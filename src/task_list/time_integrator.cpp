@@ -2481,6 +2481,7 @@ TaskStatus TimeIntegratorTaskList::Prolongation(MeshBlock *pmb, int stage) {
 TaskStatus TimeIntegratorTaskList::Primitives(MeshBlock *pmb, int stage) {
   Hydro *ph = pmb->phydro;
   Field *pf = pmb->pfield;
+  DustFluids *pdf = pmb->pdustfluids;
   PassiveScalars *ps = pmb->pscalars;
   BoundaryValues *pbval = pmb->pbval;
 
@@ -2578,6 +2579,7 @@ TaskStatus TimeIntegratorTaskList::Primitives(MeshBlock *pmb, int stage) {
 
 TaskStatus TimeIntegratorTaskList::PhysicalBoundary(MeshBlock *pmb, int stage) {
   Hydro *ph = pmb->phydro;
+  DustFluids *pdf = pmb->pdustfluids;
   PassiveScalars *ps = pmb->pscalars;
   BoundaryValues *pbval = pmb->pbval;
 
@@ -2920,10 +2922,11 @@ TaskStatus TimeIntegratorTaskList::CalculateHydroOrbital(MeshBlock *pmb, int sta
   } else {
     OrbitalAdvection *porb = pmb->porb;
     Hydro *ph = pmb->phydro;
+    DustFluids *pdf = pmb->pdustfluids;
     PassiveScalars *ps = pmb->pscalars;
     Real dt = pmb->pmy_mesh->dt
               *(stage_wghts[(stage-1)].ebeta-stage_wghts[(stage-1)].sbeta);
-    porb->CalculateOrbitalAdvectionCC(dt, ph->u, ps->s);
+    porb->CalculateOrbitalAdvectionCC(dt, ph->u, pdf->df_cons, ps->s);
     return TaskStatus::success;
   }
   return TaskStatus::fail;
@@ -3072,7 +3075,8 @@ TaskStatus TimeIntegratorTaskList::AddSourceTermsDustFluids(MeshBlock *pmb, int 
       || pmb->pmy_mesh->fluid_setup != FluidFormulation::evolve) {
     if (stage <= nstages) {
       if (stage_wghts[stage-1].main_stage) {
-        pmb->DeepCopy(pdf->df_cons_af_src, pdf->df_cons);
+//        pmb->DeepCopy(pdf->df_cons_af_src, pdf->df_cons);
+        pdf->df_cons_af_src = pdf->df_cons;
       }
       return TaskStatus::next;
     }
@@ -3087,7 +3091,8 @@ TaskStatus TimeIntegratorTaskList::AddSourceTermsDustFluids(MeshBlock *pmb, int 
       Real dt = (stage_wghts[(stage-1)].beta)*(pmb->pmy_mesh->dt);
       // Evaluate the source terms at the time at the beginning of the stage
       pdf->dfsrc.AddDustFluidsSourceTerms(t_start_stage, dt, pdf->df_flux, pdf->df_prim, pdf->df_cons);
-      pmb->DeepCopy(pdf->df_cons_af_src, pdf->df_cons);
+//      pmb->DeepCopy(pdf->df_cons_af_src, pdf->df_cons);
+      pdf->df_cons_af_src = pdf->df_cons;
     }
     return TaskStatus::next;
   }
@@ -3108,19 +3113,34 @@ TaskStatus TimeIntegratorTaskList::SetPropertiesDustFluids(MeshBlock *pmb, int s
       // back up the stopping time, nu_dust, cs_dust at the first main stage
       if (pmb->pmy_mesh->orbital_advection < 2) { // zeroth or first order orbital splitting
         if (stage == 1) {
-          pmb->DeepCopy(pdf->stopping_time_array_n, pdf->stopping_time_array);
-          pmb->DeepCopy(pdf->nu_dustfluids_array_n, pdf->nu_dustfluids_array);
-          pmb->DeepCopy(pdf->cs_dustfluids_array_n, pdf->cs_dustfluids_array);
-          pmb->DeepCopy(ph->w_n, ph->w);
-          pmb->DeepCopy(pdf->df_prim_n, pdf->df_prim);
+//          pmb->DeepCopy(pdf->stopping_time_array_n, pdf->stopping_time_array);
+//          pmb->DeepCopy(pdf->nu_dustfluids_array_n, pdf->nu_dustfluids_array);
+//          pmb->DeepCopy(pdf->cs_dustfluids_array_n, pdf->cs_dustfluids_array);
+//          pmb->DeepCopy(ph->w_n, ph->w);
+//          pmb->DeepCopy(pdf->df_prim_n, pdf->df_prim);
+
+          pdf->stopping_time_array_n = pdf->stopping_time_array;
+          pdf->nu_dustfluids_array_n = pdf->nu_dustfluids_array;
+          pdf->cs_dustfluids_array_n = pdf->cs_dustfluids_array;
+          ph->w_n = ph->w;
+          pdf->df_prim_n = pdf->df_prim;
+
         }
       } else { // second order orbital splitting
         if (stage == 2) {
-          pmb->DeepCopy(pdf->stopping_time_array_n, pdf->stopping_time_array);
-          pmb->DeepCopy(pdf->nu_dustfluids_array_n, pdf->nu_dustfluids_array);
-          pmb->DeepCopy(pdf->cs_dustfluids_array_n, pdf->cs_dustfluids_array);
-          pmb->DeepCopy(ph->w_n, ph->w);
-          pmb->DeepCopy(pdf->df_prim_n, pdf->df_prim);
+//         pmb->DeepCopy(pdf->stopping_time_array_n, pdf->stopping_time_array);
+//         pmb->DeepCopy(pdf->nu_dustfluids_array_n, pdf->nu_dustfluids_array);
+//         pmb->DeepCopy(pdf->cs_dustfluids_array_n, pdf->cs_dustfluids_array);
+//         pmb->DeepCopy(ph->w_n, ph->w);
+//         pmb->DeepCopy(pdf->df_prim_n, pdf->df_prim);
+
+          pdf->stopping_time_array_n = pdf->stopping_time_array;
+          pdf->nu_dustfluids_array_n = pdf->nu_dustfluids_array;
+          pdf->cs_dustfluids_array_n = pdf->cs_dustfluids_array;
+          ph->w_n = ph->w;
+          pdf->df_prim_n = pdf->df_prim;
+
+
         }
       }
     }
@@ -3258,8 +3278,8 @@ TaskStatus TimeIntegratorTaskList::ReceiveDustFluidsShear(MeshBlock *pmb, int st
 
   if (ret_dust && ret_diff) {
     if (pdf->dfdif.dustfluids_diffusion_defined)
-      pdf->dfccdif.diffccbvar.SetShearingBoxBoundaryBuffers(pdf->dust_xorder);
-    pdf->dfbvar.SetShearingBoxBoundaryBuffers(pdf->dust_xorder);
+      pdf->dfccdif.diffccbvar.SetShearingBoxBoundaryBuffers();
+    pdf->dfbvar.SetShearingBoxBoundaryBuffers();
     return TaskStatus::success;
   } else {
     return TaskStatus::fail;
@@ -3307,8 +3327,8 @@ TaskStatus TimeIntegratorTaskList::ReceiveDustFluidsFluxShear(MeshBlock *pmb, in
 
       if (ret_dust && ret_diff) {
         if (pdf->dfdif.dustfluids_diffusion_defined)
-          pdf->dfccdif.diffccbvar.SetFluxShearingBoxBoundaryBuffers(pdf->dust_xorder);
-        pdf->dfbvar.SetFluxShearingBoxBoundaryBuffers(pdf->dust_xorder);
+          pdf->dfccdif.diffccbvar.SetFluxShearingBoxBoundaryBuffers();
+        pdf->dfbvar.SetFluxShearingBoxBoundaryBuffers();
         return TaskStatus::success;
       } else {
         return TaskStatus::fail;

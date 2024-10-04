@@ -35,7 +35,7 @@
 //! \brief put cell-centered variables of this meshblock into orbital buffer
 
 void OrbitalAdvection::SetOrbitalAdvectionCC(const AthenaArray<Real> &u,
-                                             const AthenaArray<Real> &s) {
+           const AthenaArray<Real> &cons_df, const AthenaArray<Real> &s) {
   int is = pmb_->is, ie = pmb_->ie;
   int js = pmb_->js, je = pmb_->je;
   int ks = pmb_->ks, ke = pmb_->ke;
