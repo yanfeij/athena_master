@@ -193,8 +193,9 @@ using DustStoppingTimeFunc = void (*)(
        const AthenaArray<Real> &prim_df, AthenaArray<Real> &stopping_time);
 using SrcTermFunc = void (*)(
     MeshBlock *pmb, const Real time, const Real dt, const AthenaArray<Real> &prim,
-    const AthenaArray<Real> &prim_scalar, const AthenaArray<Real> &bcc,
-    AthenaArray<Real> &cons, AthenaArray<Real> &cons_scalar);
+    const AthenaArray<Real> &prim_df, const AthenaArray<Real> &prim_scalar,
+    const AthenaArray<Real> &bcc, AthenaArray<Real> &cons, AthenaArray<Real> &cons_df,
+    AthenaArray<Real> &cons_scalar);
 using TimeStepFunc = Real (*)(MeshBlock *pmb);
 using HistoryOutputFunc = Real (*)(MeshBlock *pmb, int iout);
 using MetricFunc = void (*)(
