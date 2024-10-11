@@ -118,8 +118,8 @@ Mesh::Mesh(ParameterInput *pin, int mesh_test) :
     MeshGenerator_{UniformMeshGeneratorX1, UniformMeshGeneratorX2,
                    UniformMeshGeneratorX3},
     BoundaryFunction_{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},
-    AMRFlag_{}, UserSourceTerm_{}, UserTimeStep_{}, ViscosityCoeff_{},
-    ConductionCoeff_{}, FieldDiffusivity_{}, DustDiffusivity_{},
+    AMRFlag_{}, UserSourceTerm_{}, UserStoppingTime_{}, UserTimeStep_{},
+    ViscosityCoeff_{}, ConductionCoeff_{}, FieldDiffusivity_{}, DustDiffusivity_{},
     OrbitalVelocity_{}, OrbitalVelocityDerivative_{nullptr, nullptr},
     MGGravityBoundaryFunction_{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},
     MGGravitySourceMaskFunction_{} {
@@ -611,9 +611,9 @@ Mesh::Mesh(ParameterInput *pin, IOWrapper& resfile, int mesh_test) :
     MeshGenerator_{UniformMeshGeneratorX1, UniformMeshGeneratorX2,
                    UniformMeshGeneratorX3},
     BoundaryFunction_{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},
-    AMRFlag_{}, UserSourceTerm_{}, UserTimeStep_{}, ViscosityCoeff_{},
-    ConductionCoeff_{}, FieldDiffusivity_{}, DustDiffusivity_{},
-    OrbitalVelocity_{}, OrbitalVelocityDerivative_{nullptr, nullptr},
+    AMRFlag_{}, UserSourceTerm_{}, UserStoppingTime_{},
+    UserTimeStep_{}, ViscosityCoeff_{}, ConductionCoeff_{}, FieldDiffusivity_{},
+    DustDiffusivity_{}, OrbitalVelocity_{}, OrbitalVelocityDerivative_{nullptr, nullptr},
     MGGravityBoundaryFunction_{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},
     MGGravitySourceMaskFunction_{} {
   std::stringstream msg;
