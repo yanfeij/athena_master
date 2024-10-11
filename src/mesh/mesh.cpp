@@ -1709,7 +1709,8 @@ void Mesh::Initialize(int res_flag, ParameterInput *pin) {
 #pragma omp for private(pmb,pbval,ph,pf,ps)
       for (int i=0; i<nblocal; ++i) {
         pmb = my_blocks(i);
-        pbval = pmb->pbval, ph = pmb->phydro, pf = pmb->pfield, ps = pmb->pscalars;
+        pbval = pmb->pbval, ph = pmb->phydro, pf = pmb->pfield,
+        pdf = pmb->pdustfluids, ps = pmb->pscalars;
         if (multilevel)
           pbval->ProlongateBoundaries(time, 0.0, pbval->bvars_main_int);
 
@@ -1823,7 +1824,8 @@ void Mesh::Initialize(int res_flag, ParameterInput *pin) {
       // Calc initial diffusion coefficients
 #pragma omp for private(pmb,ph,pf)
       for (int i=0; i<nblocal; ++i) {
-        pmb = my_blocks(i); ph = pmb->phydro, pf = pmb->pfield;
+        pmb = my_blocks(i); ph = pmb->phydro, pf = pmb->pfield,
+        pdf = pmb->pdustfluids;
         if (ph->hdif.hydro_diffusion_defined)
           ph->hdif.SetDiffusivity(ph->w, pf->bcc);
         if (MAGNETIC_FIELDS_ENABLED) {
@@ -1990,6 +1992,7 @@ void Mesh::CorrectMidpointInitialCondition() {
     pmb = my_blocks(nb);
     ph = pmb->phydro;
     ps = pmb->pscalars;
+    pdf = pmb->pdustfluids;
 
     // Assume cell-centered analytic value is computed at all real cells, and ghost
     // cells with the cell-centered U have been exchanged
