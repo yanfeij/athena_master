@@ -692,6 +692,11 @@ std::size_t MeshBlock::GetBlockSizeInBytes() {
   if (MAGNETIC_FIELDS_ENABLED)
     size += (pfield->b.x1f.GetSizeInBytes() + pfield->b.x2f.GetSizeInBytes()
              + pfield->b.x3f.GetSizeInBytes());
+  if (NDUSTFLUIDS > 0) {
+    size += pdustfluids->df_cons.GetSizeInBytes();
+    if (pdustfluids->dfdif.dustfluids_diffusion_defined)
+      size += pdustfluids->dfccdif.diff_mom_cc.GetSizeInBytes();
+  }
   if (NSCALARS > 0)
     size += pscalars->s.GetSizeInBytes();
 

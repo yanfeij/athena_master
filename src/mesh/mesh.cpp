@@ -1759,6 +1759,11 @@ void Mesh::Initialize(int res_flag, ParameterInput *pin) {
           //! * add MHD loop limit calculation for 4th order W(U)
           // Apply physical boundaries prior to 4th order W(U)
           ph->hbvar.SwapHydroQuantity(ph->w, HydroBoundaryQuantity::prim);
+          if (NDUSTFLUIDS > 0) {
+            int dust_xorder = pmb->pdustfluids->dust_xorder;
+            if (dust_xorder == 4)
+              pdf->dfbvar.SwapDustFluidsQuantity(pdf->df_prim, DustFluidsBoundaryQuantity::prim_df);
+          }
           if (NSCALARS > 0) {
             ps->sbvar.var_cc = &(ps->r);
             if (pmb->pmy_mesh->multilevel) {
