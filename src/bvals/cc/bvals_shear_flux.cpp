@@ -24,6 +24,8 @@
 #include "../../athena.hpp"
 #include "../../athena_arrays.hpp"
 #include "../../coordinates/coordinates.hpp"
+#include "../../dustfluids/dustfluids.hpp"
+#include "../../dustfluids/dustfluids_diffusion_cc/cell_center_diffusions.hpp"
 #include "../../eos/eos.hpp"
 #include "../../field/field.hpp"
 #include "../../globals.hpp"

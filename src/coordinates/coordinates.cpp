@@ -849,6 +849,12 @@ void Coordinates::AddCoordTermsDivergence_STS(
   return;
 }
 
+void Coordinates::AddCoordTermsDivergenceDustFluids(
+    const Real dt, const AthenaArray<Real> *df_flux,
+    const AthenaArray<Real> &df_prim, AthenaArray<Real> &df_cons) {
+  return;
+}
+
 //----------------------------------------------------------------------------------------
 // Function for determining if index corresponds to a polar boundary
 // Inputs:

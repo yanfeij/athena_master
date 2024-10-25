@@ -67,6 +67,20 @@ class OrbitalBoundaryCommunication {
   void SetFieldBufferFromCoarser(Real *buf, int &p, const int nb);
   void SetFieldBufferFromFiner(Real *buf, int &p, const int nb);
 
+  void LoadDustFluidsBufferSameLevel(Real *buf, int &p, const int nb);
+  void LoadDustFluidsBufferToCoarser(Real *buf, int &p, const int nb);
+  void LoadDustFluidsBufferToFiner(Real *buf, int &p, const int nb);
+  void SetDustFluidsBufferSameLevel(Real *buf, int &p, const int nb);
+  void SetDustFluidsBufferFromCoarser(Real *buf, int &p, const int nb);
+  void SetDustFluidsBufferFromFiner(Real *buf, int &p, const int nb);
+
+  void LoadDustDiffusionBufferSameLevel(Real *buf, int &p, const int nb);
+  void LoadDustDiffusionBufferToCoarser(Real *buf, int &p, const int nb);
+  void LoadDustDiffusionBufferToFiner(Real *buf, int &p, const int nb);
+  void SetDustDiffusionBufferSameLevel(Real *buf, int &p, const int nb);
+  void SetDustDiffusionBufferFromCoarser(Real *buf, int &p, const int nb);
+  void SetDustDiffusionBufferFromFiner(Real *buf, int &p, const int nb);
+
   void LoadScalarBufferSameLevel(Real *buf, int &p, const int nb);
   void LoadScalarBufferToCoarser(Real *buf, int &p, const int nb);
   void LoadScalarBufferToFiner(Real *buf, int &p, const int nb);

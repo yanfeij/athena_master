@@ -15,6 +15,8 @@
 // Athena++ headers
 #include "../athena.hpp"
 #include "../athena_arrays.hpp"
+#include "../dustfluids/dustfluids.hpp"
+#include "../dustfluids/dustfluids_diffusion/dustfluids_diffusion.hpp"
 #include "../cr/cr.hpp"
 #include "../eos/eos.hpp"
 #include "../hydro/hydro.hpp"
@@ -450,4 +452,62 @@ void Cylindrical::ConvertAngle(MeshBlock *pmb, const int nang,
       }
     }
   }
+}
+
+
+void Cylindrical::AddCoordTermsDivergenceDustFluids(
+    const Real dt, const AthenaArray<Real> *df_flux,
+    const AthenaArray<Real> &prim_df, AthenaArray<Real> &cons_df) {
+
+  DustFluids *pdf              = pmy_block->pdustfluids;
+  DustFluidsDiffusion &dfd     = pmy_block->pdustfluids->dfdif;
+  bool do_dustfluids_diffusion = pdf->dfdif.dustfluids_diffusion_defined;
+  bool diffusion_correction    = do_dustfluids_diffusion && dfd.Momentum_Diffusion_Flag;
+
+  for (int n=0; n<NDUSTFLUIDS; ++n) {
+    int dust_id = n;
+    int rho_id  = 4*dust_id;
+    int v1_id   = rho_id + 1;
+    int v2_id   = rho_id + 2;
+    int v3_id   = rho_id + 3;
+    for (int k=pmy_block->ks; k<=pmy_block->ke; ++k) {
+      for (int j=pmy_block->js; j<=pmy_block->je; ++j) {
+#pragma omp simd
+        for (int i=pmy_block->is; i<=pmy_block->ie; ++i) {
+          // src_1 = <M_{phi phi}><1/r>, Skinner and Ostriker (2010) eq. 11a
+          Real m_pp = prim_df(rho_id,k,j,i)*prim_df(v2_id,k,j,i)*prim_df(v2_id,k,j,i);
+
+          if (pdf->SoundSpeed_Flag) {
+            //Sound speed of dust fluids
+            Real m_pp_cs = SQR(pdf->cs_dustfluids_array(dust_id,k,j,i)) * prim_df(rho_id,k,j,i);
+            m_pp += m_pp_cs;
+          }
+
+          //if (do_dustfluids_diffusion) {
+            //// Dust concentration diffusive flux
+            //Real m_pp_rho_diff = SQR(dfd.dustfluids_diffusion_flux[X2DIR](rho_id, k, j+1, i) +
+                  //dfd.dustfluids_diffusion_flux[X2DIR](rho_id, k, j, i))/(0.5*(prim_df(rho_id, k, j+1, i)+prim_df(rho_id, k, j, i)));
+            //m_pp += m_pp_rho_diff;
+          //}
+
+          if (diffusion_correction) {
+            // Dust momentum diffusive flux
+            Real m_pp_m2_diff = 0.5*(dfd.dustfluids_diffusion_flux[X2DIR](v2_id, k, j+1, i) +
+                                     dfd.dustfluids_diffusion_flux[X2DIR](v2_id, k, j, i));
+            m_pp += m_pp_m2_diff;
+          }
+
+          cons_df(v1_id,k,j,i) += dt*coord_src1_i_(i)*m_pp;
+
+          // src_2 = -< M_{phi r} ><1/r>
+          Real& x_i   = x1f(i);
+          Real& x_ip1 = x1f(i+1);
+          // Ju PhD thesis equation 2.14
+          cons_df(v2_id, k, j, i) -= dt*coord_src2_i_(i)*(x_i*df_flux[X1DIR](v2_id, k, j, i)
+                                              + x_ip1*df_flux[X1DIR](v2_id, k, j, i+1));
+        }
+      }
+    }
+  }
+  return;
 }

@@ -29,6 +29,12 @@ EquationOfState::EquationOfState(MeshBlock *pmb, ParameterInput *pin) :
     iso_sound_speed_{pin->GetReal("hydro", "iso_sound_speed")},  // error if missing!
     density_floor_{pin->GetOrAddReal("hydro", "dfloor", std::sqrt(1024*float_min) )},
     scalar_floor_{pin->GetOrAddReal("hydro", "sfloor", std::sqrt(1024*float_min))} {
+
+    for (int n=0; n<NDUSTFLUIDS; ++n)
+      dustfluids_floor_[n] = pin->GetOrAddReal("dust", "dffloor_"
+                           + std::to_string(n+1), std::sqrt(1024*float_min));
+
+
   if (pmb->phydro->fofc_enabled)
     fofc_.NewAthenaArray(pmb->ncells3, pmb->ncells2, pmb->ncells1);
   if (neighbor_flooring_)

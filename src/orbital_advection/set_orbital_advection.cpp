@@ -20,6 +20,7 @@
 #include "../athena.hpp"
 #include "../athena_arrays.hpp"
 #include "../coordinates/coordinates.hpp"
+#include "../dustfluids/dustfluids.hpp"
 #include "../field/field.hpp"
 #include "../hydro/hydro.hpp"
 #include "../mesh/mesh.hpp"
@@ -34,7 +35,7 @@
 //! \brief put cell-centered variables of this meshblock into orbital buffer
 
 void OrbitalAdvection::SetOrbitalAdvectionCC(const AthenaArray<Real> &u,
-                                             const AthenaArray<Real> &s) {
+           const AthenaArray<Real> &cons_df, const AthenaArray<Real> &s) {
   int is = pmb_->is, ie = pmb_->ie;
   int js = pmb_->js, je = pmb_->je;
   int ks = pmb_->ks, ke = pmb_->ke;
@@ -52,6 +53,23 @@ void OrbitalAdvection::SetOrbitalAdvectionCC(const AthenaArray<Real> &u,
 #pragma omp simd
           for (int j = jl; j <= ju; j++) {
             orbital_cons(nph,k,i,j+shift) = u(nph,k,j,i);
+          }
+        }
+      }
+    }
+    // dust fluids
+    if (NDUSTFLUIDS>0) {
+      for (int k = ks; k <= ke; k++) {
+        for (int i = is; i <= ie; i++) {
+          int offset = ofc(k,i);
+          const int shift = (offset>0)?onx:0;
+          int jl = std::max(js, js-xgh-offset);
+          int ju = std::min(je, je+1+xgh-offset);
+          for (int ndv = 0; ndv < NDUSTVARS; ndv++) {
+#pragma omp simd
+            for (int j = jl; j <= ju; j++) {
+              orbital_df_cons(ndv,k,i,j+shift)= cons_df(ndv,k,j,i);
+            }
           }
         }
       }
@@ -89,6 +107,23 @@ void OrbitalAdvection::SetOrbitalAdvectionCC(const AthenaArray<Real> &u,
         }
       }
     }
+    // dust fluids
+    if (NDUSTFLUIDS>0) {
+      for (int j = js; j <= je; j++) {
+        for (int i = is; i <= ie; i++) {
+          int offset = ofc(j,i);
+          const int shift = (offset>0)?onx:0;
+          int kl = std::max(ks, ks-xgh-offset);
+          int ku = std::min(ke, ke+1+xgh-offset);
+          for (int ndv = 0; ndv < NDUSTVARS; ndv++) {
+#pragma omp simd
+            for (int k = kl; k <= ku; k++) {
+              orbital_df_cons(ndv,j,i,k+shift)= cons_df(ndv,k,j,i);
+            }
+          }
+        }
+      }
+    }
     // passive scalars
     if (NSCALARS>0) {
       for (int j = js; j <= je; j++) {
@@ -112,6 +147,10 @@ void OrbitalAdvection::SetOrbitalAdvectionCC(const AthenaArray<Real> &u,
     pmb_->pmr->RestrictCellCenteredValues(u, u_coarse_send, 0, NHYDRO-1,
                                           pmb_->cis, pmb_->cie, pmb_->cjs,
                                           pmb_->cje, pmb_->cks, pmb_->cke);
+    if (NDUSTFLUIDS>0)
+      pmb_->pmr->RestrictCellCenteredValues(cons_df, df_cons_coarse_send, 0, NDUSTVARS-1,
+                                            pmb_->cis, pmb_->cie, pmb_->cjs,
+                                            pmb_->cje, pmb_->cks, pmb_->cke);
     if (NSCALARS>0)
       pmb_->pmr->RestrictCellCenteredValues(s, s_coarse_send, 0, NSCALARS-1,
                                             pmb_->cis, pmb_->cie, pmb_->cjs,

@@ -43,6 +43,12 @@ EquationOfState::EquationOfState(MeshBlock *pmb, ParameterInput *pin) :
     pressure_floor_{pin->GetOrAddReal("hydro", "pfloor", std::sqrt(1024*float_min))},
     scalar_floor_{pin->GetOrAddReal("hydro", "sfloor", std::sqrt(1024*float_min))},
     gamma_max_{pin->GetOrAddReal("hydro", "gamma_max", 1000.0)} {
+
+    for (int n=0; n<NDUSTFLUIDS; ++n)
+      dustfluids_floor_[n] = pin->GetOrAddReal("dust", "dffloor_"
+                            + std::to_string(n+1), std::sqrt(1024*float_min));
+
+
   int nc1 = pmb->ncells1;
   normal_dd_.NewAthenaArray(nc1);
   normal_ee_.NewAthenaArray(nc1);

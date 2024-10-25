@@ -24,6 +24,9 @@
 #include "../athena_arrays.hpp"
 #include "../bvals/bvals.hpp"
 #include "../coordinates/coordinates.hpp"
+#include "../dustfluids/dustfluids.hpp"
+#include "../dustfluids/dustfluids_diffusion/dustfluids_diffusion.hpp"
+#include "../dustfluids/dustfluids_diffusion_cc/cell_center_diffusions.hpp"
 #include "../cr/cr.hpp"
 #include "../eos/eos.hpp"
 #include "../fft/athena_fft.hpp"
@@ -200,7 +203,8 @@ MeshBlock::MeshBlock(int igid, int ilid, LogicalLocation iloc, RegionSize input_
   //!    background fluid that is not dynamically evolved)
   //! 2. MPI ranks containing MeshBlocks that solve a subset of the physics, e.g. Gravity
   //!    but not Hydro.
-  //! 3. MAGNETIC_FIELDS_ENABLED, SELF_GRAVITY_ENABLED, NSCALARS, (future) FLUID_ENABLED,
+  //! 3. MAGNETIC_FIELDS_ENABLED, SELF_GRAVITY_ENABLED, NDUSTFLUIDS, NSCALARS,
+  //!    (future) FLUID_ENABLED,
   //!    etc. become runtime switches
 
   // if (FLUID_ENABLED) {
@@ -222,6 +226,15 @@ MeshBlock::MeshBlock(int igid, int ilid, LogicalLocation iloc, RegionSize input_
     pgrav = new Gravity(this, pin);
     pbval->AdvanceCounterPhysID(CellCenteredBoundaryVariable::max_phys_id);
   }
+
+  if (NDUSTFLUIDS > 0) {
+    // if (this->dustfluids_block)
+    pdustfluids = new DustFluids(this, pin);
+    pbval->AdvanceCounterPhysID(DustFluidsBoundaryVariable::max_phys_id);
+    if (pdustfluids->dfdif.dustfluids_diffusion_defined)
+      pbval->AdvanceCounterPhysID(DustDiffusionBoundaryVariable::max_phys_id);
+  }
+
   if (NSCALARS > 0) {
     // if (this->scalars_block)
     pscalars = new PassiveScalars(this, pin);
@@ -424,6 +437,14 @@ MeshBlock::MeshBlock(int igid, int ilid, Mesh *pm, ParameterInput *pin,
     pbval->AdvanceCounterPhysID(CellCenteredBoundaryVariable::max_phys_id);
   }
 
+  if (NDUSTFLUIDS > 0) {
+    // if (this->dustfluids_block)
+    pdustfluids = new DustFluids(this, pin);
+    pbval->AdvanceCounterPhysID(DustFluidsBoundaryVariable::max_phys_id);
+    if (pdustfluids->dfdif.dustfluids_diffusion_defined)
+      pbval->AdvanceCounterPhysID(DustDiffusionBoundaryVariable::max_phys_id);
+  }
+
   if (NSCALARS > 0) {
     // if (this->scalars_block)
     pscalars = new PassiveScalars(this, pin);
@@ -522,6 +543,22 @@ MeshBlock::MeshBlock(int igid, int ilid, Mesh *pm, ParameterInput *pin,
     std::memcpy(pcr->u_cr1.data(), &(mbdata[os]), pcr->u_cr1.GetSizeInBytes());
     os += pcr->u_cr.GetSizeInBytes();
   }
+
+  // (conserved variable) Dust Fluids:
+  if (NDUSTFLUIDS > 0) {
+    std::memcpy(pdustfluids->df_cons.data(), &(mbdata[os]), pdustfluids->df_cons.GetSizeInBytes());
+    // load it into the other memory register(s) too
+    std::memcpy(pdustfluids->df_cons1.data(), &(mbdata[os]), pdustfluids->df_cons1.GetSizeInBytes());
+    os += pdustfluids->df_cons.GetSizeInBytes();
+    if (pdustfluids->dfdif.dustfluids_diffusion_defined) {
+      std::memcpy(pdustfluids->dfccdif.diff_mom_cc.data(), &(mbdata[os]),
+                       pdustfluids->dfccdif.diff_mom_cc.GetSizeInBytes());
+      os += pdustfluids->dfccdif.diff_mom_cc.GetSizeInBytes();
+    }
+  }
+
+
+
   // (conserved variable) Passive scalars:
   if (NSCALARS > 0) {
     std::memcpy(pscalars->s.data(), &(mbdata[os]), pscalars->s.GetSizeInBytes());
@@ -554,6 +591,7 @@ MeshBlock::~MeshBlock() {
   delete peos;
   delete porb;
   if (SELF_GRAVITY_ENABLED) delete pgrav;
+  if (NDUSTFLUIDS > 0) delete pdustfluids;
   if (NSCALARS > 0) delete pscalars;
 
   if (NR_RADIATION_ENABLED || IM_RADIATION_ENABLED) delete pnrrad;
@@ -654,6 +692,11 @@ std::size_t MeshBlock::GetBlockSizeInBytes() {
   if (MAGNETIC_FIELDS_ENABLED)
     size += (pfield->b.x1f.GetSizeInBytes() + pfield->b.x2f.GetSizeInBytes()
              + pfield->b.x3f.GetSizeInBytes());
+  if (NDUSTFLUIDS > 0) {
+    size += pdustfluids->df_cons.GetSizeInBytes();
+    if (pdustfluids->dfdif.dustfluids_diffusion_defined)
+      size += pdustfluids->dfccdif.diff_mom_cc.GetSizeInBytes();
+  }
   if (NSCALARS > 0)
     size += pscalars->s.GetSizeInBytes();
 
@@ -683,6 +726,12 @@ std::size_t MeshBlock::GetBlockSizeInBytesGray() {
   if (MAGNETIC_FIELDS_ENABLED)
     size += (pfield->b.x1f.GetSizeInBytes() + pfield->b.x2f.GetSizeInBytes()
              + pfield->b.x3f.GetSizeInBytes());
+
+  if (NDUSTFLUIDS > 0) {
+    size += pdustfluids->df_cons.GetSizeInBytes();
+    if (pdustfluids->dfdif.dustfluids_diffusion_defined)
+      size += pdustfluids->dfccdif.diff_mom_cc.GetSizeInBytes();
+  }
 
   if (NSCALARS > 0)
     size += pscalars->s.GetSizeInBytes();

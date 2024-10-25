@@ -91,6 +91,43 @@ class Reconstruction {
   void PiecewiseParabolicX3(const int k, const int j, const int il, const int iu,
                             const AthenaArray<Real> &w, const AthenaArray<Real> &bcc,
                             AthenaArray<Real> &wl, AthenaArray<Real> &wr);
+  void DonorCellX1_DustFluids(const int k, const int j, const int il, const int iu,
+                             const AthenaArray<Real> &q,
+                             AthenaArray<Real> &ql, AthenaArray<Real> &qr);
+
+  void DonorCellX2_DustFluids(const int k, const int j, const int il, const int iu,
+                             const AthenaArray<Real> &q,
+                             AthenaArray<Real> &ql, AthenaArray<Real> &qr);
+
+  void DonorCellX3_DustFluids(const int k, const int j, const int il, const int iu,
+                             const AthenaArray<Real> &q,
+                             AthenaArray<Real> &ql, AthenaArray<Real> &qr);
+
+  void PiecewiseLinearX1_DustFluids(const int k, const int j, const int il, const int iu,
+                             const AthenaArray<Real> &q,
+                             AthenaArray<Real> &ql, AthenaArray<Real> &qr);
+
+  void PiecewiseLinearX2_DustFluids(const int k, const int j, const int il, const int iu,
+                             const AthenaArray<Real> &q,
+                             AthenaArray<Real> &ql, AthenaArray<Real> &qr);
+
+  void PiecewiseLinearX3_DustFluids(const int k, const int j, const int il, const int iu,
+                             const AthenaArray<Real> &q,
+                             AthenaArray<Real> &ql, AthenaArray<Real> &qr);
+
+
+  void PiecewiseParabolicX1_DustFluids(const int k, const int j, const int il, const int iu,
+                             const AthenaArray<Real> &q,
+                             AthenaArray<Real> &ql, AthenaArray<Real> &qr);
+
+  void PiecewiseParabolicX2_DustFluids(const int k, const int j, const int il, const int iu,
+                             const AthenaArray<Real> &q,
+                             AthenaArray<Real> &ql, AthenaArray<Real> &qr);
+
+  void PiecewiseParabolicX3_DustFluids(const int k, const int j, const int il, const int iu,
+                             const AthenaArray<Real> &q,
+                             AthenaArray<Real> &ql, AthenaArray<Real> &qr);
+
 
   // overloads for non-fluid (cell-centered Hydro prim. and magnetic field) reconstruction
   void DonorCellX1(const int k, const int j, const int il, const int iu,
@@ -193,6 +230,12 @@ class Reconstruction {
   AthenaArray<Real> scr11_i_, scr12_i_, scr13_i_, scr14_i_;
   AthenaArray<Real> scr1_ni_, scr2_ni_, scr3_ni_, scr4_ni_, scr5_ni_;
   AthenaArray<Real> scr6_ni_, scr7_ni_, scr8_ni_;
+
+  AthenaArray<Real> scr01_i_df_, scr02_i_df_, scr03_i_df_, scr04_i_df_, scr05_i_df_;
+  AthenaArray<Real> scr06_i_df_, scr07_i_df_, scr08_i_df_, scr09_i_df_, scr10_i_df_;
+  AthenaArray<Real> scr11_i_df_, scr12_i_df_, scr13_i_df_, scr14_i_df_;
+  AthenaArray<Real> scr1_ni_df_, scr2_ni_df_, scr3_ni_df_, scr4_ni_df_, scr5_ni_df_;
+  AthenaArray<Real> scr6_ni_df_, scr7_ni_df_, scr8_ni_df_;
 
   // scratch arrays for arrays with different ordering
   int nvar_;// the maximum numver of variables for reconstruction

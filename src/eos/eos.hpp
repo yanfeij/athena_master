@@ -46,6 +46,21 @@ class EquationOfState {
       AthenaArray<Real> &prim, AthenaArray<Real> &bcc,
       Coordinates *pco, int il, int iu, int jl, int ju, int kl, int ku);
 
+  void DustFluidsConservedToPrimitive(
+    AthenaArray<Real> &cons_df, const AthenaArray<Real> &cons_diff,
+    const AthenaArray<Real> &prim_df_old, AthenaArray<Real> &prim_df,
+    Coordinates *pco, int il, int iu, int jl, int ju, int kl, int ku);
+
+  void DustFluidsPrimitiveToConserved(
+    const AthenaArray<Real> &prim_df, const AthenaArray<Real> &cons_diff,
+    AthenaArray<Real> &cons_df, Coordinates *pco, int il, int iu, int jl, int ju,
+    int kl, int ku);
+
+  void DustFluidsConservedToPrimitiveCellAverage(
+    AthenaArray<Real> &cons_df, const AthenaArray<Real> &prim_df_old, AthenaArray<Real> &prim_df,
+    Coordinates *pco, int il, int iu, int jl, int ju, int kl, int ku);
+
+
   void ConservedToPrimitiveTest(const AthenaArray<Real> &cons,
       const AthenaArray<Real> &bcc, int il, int iu, int jl, int ju, int kl, int ku);
   void SingleConservativeToPrimitiveHydro(
@@ -88,6 +103,14 @@ class EquationOfState {
 #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,k,j) linear(i)
   void ApplyPrimitiveFloors(AthenaArray<Real> &prim, int k, int j, int i);
 
+  #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim_df,n,k,j) linear(i)
+  void ApplyDustFluidsFloors(AthenaArray<Real> &prim_df, int n, int k, int j, int i);
+
+#pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,cons_df,prim_df,n,k,j) linear(i)
+  void ApplyDustFluidsPrimitiveConservedFloors(
+    AthenaArray<Real> &cons_df, AthenaArray<Real> &prim_df,
+    int n, int k, int j, int i);
+
 #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,s,n,k,j) linear(i)
   void ApplyPassiveScalarFloors(AthenaArray<Real> &s, int n, int k, int j, int i);
 
@@ -100,6 +123,7 @@ class EquationOfState {
 #if !RELATIVISTIC_DYNAMICS  // Newtonian: SR, GR defined as no-op
 #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this)
   Real SoundSpeed(const Real prim[(NHYDRO)]);
+  Real SoundSpeed_DustFluids(const Real prim_df[(NDUSTVARS)], const Real nu_dust, const Real eddy_time);
   // Define flooring function for fourth-order EOS as no-op for SR, GR regimes
 #pragma omp declare simd simdlen(SIMD_WIDTH) uniform(this,prim,cons,bcc,k,j) linear(i)
   void ApplyPrimitiveConservedFloors(
@@ -138,6 +162,7 @@ class EquationOfState {
   {return;}
 #else  // GR: Newtonian defined as no-op
   Real SoundSpeed(const Real[]) {return 0.0;}
+  Real SoundSpeed_DustFluids(const Real dust_nu, const Real t_eddy) {return 0.0;}
   Real FastMagnetosonicSpeed(const Real[], const Real) {return 0.0;}
   void ApplyPrimitiveConservedFloors(
       AthenaArray<Real> &, AthenaArray<Real> &, AthenaArray<Real> &,
@@ -188,10 +213,15 @@ class EquationOfState {
   Real iso_sound_speed_, gamma_;         // isothermal Cs, ratio of specific heats
   Real density_floor_, pressure_floor_;  // density and pressure floors
   Real energy_floor_;                    // energy floor
+  Real dustfluids_floor_[NSPECIES];      // dust fluids density floor,
+                                         //I set dustfluids_floor_ as NSPECIES,
+                                         // so that it still can be initilized when NDUSTFLUIDS == 0.
   Real scalar_floor_; // dimensionless concentration floor
   Real sigma_max_, beta_min_;            // limits on ratios of gas quantities to pmag
   Real gamma_max_;                       // maximum Lorentz factor
   Real rho_min_, rho_pow_;               // variables to control power-law denity floor
+  Real dustfluids_rho_min_[NSPECIES];    // variables to control power-law dust denity floor
+  Real dustfluids_rho_pow_[NSPECIES];    // variables to control power-law dust denity floor
   Real pgas_min_, pgas_pow_;             // variables to control power-law pressure floor
   Real rho_unit_, inv_rho_unit_;         // physical unit/sim unit for mass density
   Real egas_unit_, inv_egas_unit_;       // physical unit/sim unit for energy density

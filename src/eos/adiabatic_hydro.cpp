@@ -37,6 +37,10 @@ EquationOfState::EquationOfState(MeshBlock *pmb, ParameterInput *pin) :
         nbavg_p_.NewAthenaArray(pmb->ncells3, pmb->ncells2, pmb->ncells1);
       }
 
+      for (int n=0; n<NDUSTFLUIDS; ++n)
+        dustfluids_floor_[n] = pin->GetOrAddReal("dust", "dffloor_"
+                               + std::to_string(n+1), std::sqrt(1024*float_min));
+
     }
 
 //----------------------------------------------------------------------------------------

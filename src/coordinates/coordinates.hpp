@@ -20,6 +20,8 @@
 // Athena++ headers
 #include "../athena.hpp"
 #include "../athena_arrays.hpp"
+#include "../dustfluids/dustfluids.hpp"
+#include "../dustfluids/srcterms/dustfluids_srcterms.hpp"
 #include "../hydro/srcterms/hydro_srcterms.hpp"
 #include "../mesh/mesh.hpp"
 
@@ -34,6 +36,7 @@ class ParameterInput;
 class Coordinates {
  public:
   friend class HydroSourceTerms;
+  friend class DustFluidsSourceTerms;
   Coordinates(MeshBlock *pmb, ParameterInput *pin, bool flag = false);
   virtual ~Coordinates() = default;
 
@@ -138,6 +141,9 @@ class Coordinates {
   virtual void AddCoordTermsDivergence_STS(const Real dt, int stage,
                              const AthenaArray<Real> *flux,
                              AthenaArray<Real> &u, AthenaArray<Real> &flux_div);
+
+  virtual void AddCoordTermsDivergenceDustFluids(const Real dt, const AthenaArray<Real> *df_flx,
+                             const AthenaArray<Real> &prim_df, AthenaArray<Real> &cons_df);
 
 
     // ...define the direction of radiation angle with respect to the local axis
@@ -314,6 +320,7 @@ class Coordinates {
 
 class Cartesian : public Coordinates {
   friend class HydroSourceTerms;
+  friend class DustFluidsSourceTerms;
 
  public:
   Cartesian(MeshBlock *pmb, ParameterInput *pin, bool flag);
@@ -326,6 +333,7 @@ class Cartesian : public Coordinates {
 
 class Cylindrical : public Coordinates {
   friend class HydroSourceTerms;
+  friend class DustFluidsSourceTerms;
 
  public:
   Cylindrical(MeshBlock *pmb, ParameterInput *pin, bool flag);
@@ -376,6 +384,8 @@ class Cylindrical : public Coordinates {
                                    const AthenaArray<Real> *flux,
                                    AthenaArray<Real> &u,
                                    AthenaArray<Real> &flux_div) final;
+  void AddCoordTermsDivergenceDustFluids(const Real dt, const AthenaArray<Real> *df_flx,
+                     const AthenaArray<Real> &prim_df, AthenaArray<Real> &cons_df) final;
 
   // for radiation functions...
   void AxisDirection(int *axisx, int *axisy, int *axisz) final;
@@ -389,6 +399,7 @@ class Cylindrical : public Coordinates {
 
 class SphericalPolar : public Coordinates {
   friend class HydroSourceTerms;
+  friend class DustFluidsSourceTerms;
 
  public:
   SphericalPolar(MeshBlock *pmb, ParameterInput *pin, bool flag);
@@ -463,6 +474,9 @@ class SphericalPolar : public Coordinates {
   void AddCoordTermsDivergence_STS(const Real dt, int stage,
                                    const AthenaArray<Real> *flux, AthenaArray<Real> &u,
                                    AthenaArray<Real> &flux_div) final;
+  // ...to compute geometrical source terms on dust fluids
+  void AddCoordTermsDivergenceDustFluids(const Real dt, const AthenaArray<Real> *df_flx,
+                     const AthenaArray<Real> &prim_df, AthenaArray<Real> &cons_df) final;
 };
 
 //----------------------------------------------------------------------------------------
@@ -474,6 +488,7 @@ class SphericalPolar : public Coordinates {
 
 class Minkowski : public Coordinates {
   friend class HydroSourceTerms;
+  friend class DustFluidsSourceTerms;
 
  public:
   Minkowski(MeshBlock *pmb, ParameterInput *pin, bool flag);
@@ -529,6 +544,7 @@ class Minkowski : public Coordinates {
 
 class Schwarzschild : public Coordinates {
   friend class HydroSourceTerms;
+  friend class DustFluidsSourceTerms;
 
  public:
   Schwarzschild(MeshBlock *pmb, ParameterInput *pin, bool flag);
@@ -626,6 +642,7 @@ class Schwarzschild : public Coordinates {
 
 class KerrSchild : public Coordinates {
   friend class HydroSourceTerms;
+  friend class DustFluidsSourceTerms;
 
  public:
   KerrSchild(MeshBlock *pmb, ParameterInput *pin, bool flag);
@@ -722,6 +739,7 @@ class KerrSchild : public Coordinates {
 
 class GRUser : public Coordinates {
   friend class HydroSourceTerms;
+  friend class DustFluidsSourceTerms;
 
  public:
   GRUser(MeshBlock *pmb, ParameterInput *pin, bool flag);

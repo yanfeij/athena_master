@@ -190,6 +190,26 @@ class TimeIntegratorTaskList : public TaskList {
   TaskStatus NewBlockTimeStep(MeshBlock *pmb, int stage);
   TaskStatus CheckRefinement(MeshBlock *pmb, int stage);
 
+  //===================================================//
+  // Task for dust fluids
+
+  TaskStatus CalculateDustFluidsFlux(MeshBlock *pmb, int stage);
+  TaskStatus SendDustFluidsFlux(MeshBlock *pmb, int stage);
+  TaskStatus ReceiveAndCorrectDustFluidsFlux(MeshBlock *pmb, int stage);
+  TaskStatus IntegrateDustFluids(MeshBlock *pmb, int stage);
+  TaskStatus AddSourceTermsDustFluids(MeshBlock *pmb, int stage);
+  TaskStatus SendDustFluids(MeshBlock *pmb, int stage);
+  TaskStatus ReceiveDustFluids(MeshBlock *pmb, int stage);
+  TaskStatus SetBoundariesDustFluids(MeshBlock *pmb, int stage);
+  TaskStatus SendDustFluidsShear(MeshBlock *pmb, int stage);
+  TaskStatus ReceiveDustFluidsShear(MeshBlock *pmb, int stage);
+  TaskStatus SendDustFluidsFluxShear(MeshBlock *pmb, int stage);
+  TaskStatus ReceiveDustFluidsFluxShear(MeshBlock *pmb, int stage);
+  TaskStatus DiffuseDustFluids(MeshBlock *pmb, int stage);
+  TaskStatus DustGasDrag(MeshBlock *pmb, int stage);
+  TaskStatus SetPropertiesDustFluids(MeshBlock *pmb, int stage);
+
+
   TaskStatus CalculateScalarFlux(MeshBlock *pmb, int stage);
   TaskStatus SendScalarFlux(MeshBlock *pmb, int stage);
   TaskStatus ReceiveScalarFlux(MeshBlock *pmb, int stage);
@@ -263,6 +283,7 @@ class SuperTimeStepTaskList : public TaskList {
   // subset of NHYDRO indices
   bool do_sts_hydro;
   bool do_sts_field;
+  bool do_sts_dustfluids;
   bool do_sts_scalar;
   std::vector<int> sts_idx_subset;
 
@@ -271,10 +292,12 @@ class SuperTimeStepTaskList : public TaskList {
 
   TaskStatus CalculateHydroFlux_STS(MeshBlock *pmb, int stage);
   TaskStatus CalculateEMF_STS(MeshBlock *pmb, int stage);
+  TaskStatus CalculateDustFluidsFlux_STS(MeshBlock *pmb, int stage);
   TaskStatus CalculateScalarFlux_STS(MeshBlock *pmb, int stage);
 
   TaskStatus IntegrateHydro_STS(MeshBlock *pmb, int stage);
   TaskStatus IntegrateField_STS(MeshBlock *pmb, int stage);
+  TaskStatus IntegrateDustFluids_STS(MeshBlock *pmb, int stage);
   TaskStatus IntegrateScalars_STS(MeshBlock *pmb, int stage);
 
   TaskStatus Prolongation_STS(MeshBlock *pmb, int stage);
@@ -400,6 +423,29 @@ const TaskID SEND_RADSH(73);
 const TaskID RECV_RADSH(74);
 
 const TaskID SRCTERM_IMRAD(75);
+
+// Dust fluid task
+
+const TaskID CALC_DFSFLX(76);
+const TaskID SEND_DFSFLX(77);
+const TaskID RECV_DFSFLX(78);
+
+const TaskID SRCTERM_DFS(79);
+
+const TaskID DRAG_DUSTGAS(80);
+const TaskID INT_DFS(81);
+const TaskID SEND_DFS(82);
+const TaskID RECV_DFS(83);
+const TaskID SETB_DFS(84);
+const TaskID SEND_DFSSH(85);
+const TaskID SEND_DFSFLXSH(86);
+
+const TaskID RECV_DFSSH(87);
+const TaskID RECV_DFSFLXSH(88);
+
+const TaskID DIFFUSE_DFS(89);
+const TaskID PROPERTIES_DFS(90);
+
 
 }  // namespace HydroIntegratorTaskNames
 #endif  // TASK_LIST_TASK_LIST_HPP_

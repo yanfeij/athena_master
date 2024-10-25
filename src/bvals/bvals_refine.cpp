@@ -61,6 +61,8 @@
 // Athena++ headers
 #include "../athena.hpp"
 #include "../athena_arrays.hpp"
+#include "../dustfluids/dustfluids.hpp"
+#include "../dustfluids/dustfluids_diffusion_cc/cell_center_diffusions.hpp"
 #include "../cr/cr.hpp"
 #include "../eos/eos.hpp"
 #include "../field/field.hpp"
@@ -69,6 +71,8 @@
 #include "../nr_radiation/radiation.hpp"
 #include "../scalars/scalars.hpp"
 #include "./bvals.hpp"
+#include "cc/dustdiffusion/bvals_dustdiffusion.hpp"
+#include "cc/dustfluids/bvals_dustfluids.hpp"
 #include "cc/hydro/bvals_hydro.hpp"
 #include "fc/bvals_fc.hpp"
 
@@ -129,6 +133,13 @@ void BoundaryValues::ProlongateBoundaries(const Real time, const Real dt,
   if (MAGNETIC_FIELDS_ENABLED) {
     pf = pmb->pfield;
     pfbvar = dynamic_cast<FaceCenteredBoundaryVariable *>(bvars_main_int[1]);
+  }
+
+  DustFluidsBoundaryVariable *pdfbvar = nullptr;
+  DustDiffusionBoundaryVariable *pdfccdifbvar = nullptr;
+  DustFluids *pdf = nullptr;
+  if (NDUSTFLUIDS > 0) {
+    pdf = pmb->pdustfluids;
   }
 
   // hard core assume that radiation boundary is just after hydro/MHD
@@ -220,6 +231,10 @@ void BoundaryValues::ProlongateBoundaries(const Real time, const Real dt,
     phbvar->var_cc = &(ph->coarse_prim_);
     if (MAGNETIC_FIELDS_ENABLED)
       pfbvar->var_fc = &(pf->coarse_b_);
+    if (NDUSTFLUIDS > 0) {
+      DustFluids *pdf = pmb->pdustfluids;
+      pdf->dfbvar.var_cc = &(pdf->coarse_df_prim_);
+    }
     if (NSCALARS > 0) {
       ps = pmb->pscalars;
       ps->sbvar.var_cc = &(ps->coarse_r_);
@@ -240,6 +255,10 @@ void BoundaryValues::ProlongateBoundaries(const Real time, const Real dt,
     phbvar->var_cc = &(ph->w);
     if (MAGNETIC_FIELDS_ENABLED)
       pfbvar->var_fc = &(pf->b);
+    if (NDUSTFLUIDS > 0) {
+      DustFluids *pdf = pmb->pdustfluids;
+      pdf->dfbvar.var_cc = &(pdf->df_prim);
+    }
     if (NSCALARS > 0) {
       ps = pmb->pscalars;
       ps->sbvar.var_cc = &(ps->r);
@@ -382,8 +401,12 @@ void BoundaryValues::ApplyPhysicalBoundariesOnCoarseLevel(
   // temporarily hardcode Hydro and Field array access:
   Hydro *ph = pmb->phydro;
   Field *pf = nullptr;
+  DustFluids *pdf = nullptr;
   if (MAGNETIC_FIELDS_ENABLED) {
     pf = pmb->pfield;
+  }
+  if (NDUSTFLUIDS > 0) {
+    pdf = pmb->pdustfluids;
   }
 
   NRRadiation *pnrrad = nullptr;
@@ -439,6 +462,13 @@ void BoundaryValues::ApplyPhysicalBoundariesOnCoarseLevel(
                                   pf->coarse_b_, ph->coarse_prim_,
                                   pf->coarse_bcc_, pmr->pcoarsec,
                                   si-f1m, ei+f1p, sj-f2m, ej+f2p, sk-f3m, ek+f3p);
+  if (NDUSTFLUIDS > 0) {
+    pmb->peos->DustFluidsConservedToPrimitive(pdf->coarse_df_cons_, pdf->dfccdif.coarse_diff_mom_cc_,
+                                              pdf->coarse_df_prim_, pdf->coarse_df_prim_,
+                                              pmr->pcoarsec,
+                                              si-f1m, ei+f1p, sj-f2m, ej+f2p,
+                                              sk-f3m, ek+f3p);
+  }
   if (NSCALARS > 0) {
     PassiveScalars *ps = pmb->pscalars;
     pmb->peos->PassiveScalarConservedToPrimitive(ps->coarse_s_, ph->coarse_cons_,
@@ -452,7 +482,8 @@ void BoundaryValues::ApplyPhysicalBoundariesOnCoarseLevel(
     if (apply_bndry_fn_[BoundaryFace::inner_x1]) {
       DispatchBoundaryFunctions(pmb, pmr->pcoarsec, time, dt,
                                 pmb->cis, pmb->cie, sj, ej, sk, ek, 1,
-                                ph->coarse_prim_, pf->coarse_b_,
+                                ph->coarse_prim_, pdf->coarse_df_prim_,
+                                pf->coarse_b_,
                                 pnrrad->coarse_ir_, pcr->coarse_cr_,
                                 BoundaryFace::inner_x1,
                                 bvars_subset);
@@ -460,7 +491,8 @@ void BoundaryValues::ApplyPhysicalBoundariesOnCoarseLevel(
     if (apply_bndry_fn_[BoundaryFace::outer_x1]) {
       DispatchBoundaryFunctions(pmb, pmr->pcoarsec, time, dt,
                                 pmb->cis, pmb->cie, sj, ej, sk, ek, 1,
-                                ph->coarse_prim_, pf->coarse_b_,
+                                ph->coarse_prim_, pdf->coarse_df_prim_,
+                                pf->coarse_b_,
                                 pnrrad->coarse_ir_, pcr->coarse_cr_,
                                 BoundaryFace::outer_x1,
                                 bvars_subset);
@@ -470,7 +502,8 @@ void BoundaryValues::ApplyPhysicalBoundariesOnCoarseLevel(
     if (apply_bndry_fn_[BoundaryFace::inner_x2]) {
       DispatchBoundaryFunctions(pmb, pmr->pcoarsec, time, dt,
                                 si, ei, pmb->cjs, pmb->cje, sk, ek, 1,
-                                ph->coarse_prim_, pf->coarse_b_,
+                                ph->coarse_prim_, pdf->coarse_df_prim_,
+                                pf->coarse_b_,
                                 pnrrad->coarse_ir_, pcr->coarse_cr_,
                                 BoundaryFace::inner_x2,
                                 bvars_subset);
@@ -485,7 +518,8 @@ void BoundaryValues::ApplyPhysicalBoundariesOnCoarseLevel(
     if (apply_bndry_fn_[BoundaryFace::outer_x2]) {
       DispatchBoundaryFunctions(pmb, pmr->pcoarsec, time, dt,
                                 si, ei, pmb->cjs, pmb->cje, sk, ek, 1,
-                                ph->coarse_prim_, pf->coarse_b_,
+                                ph->coarse_prim_, pdf->coarse_df_prim_,
+                                pf->coarse_b_,
                                 pnrrad->coarse_ir_, pcr->coarse_cr_,
                                 BoundaryFace::outer_x2,
                                 bvars_subset);
@@ -501,7 +535,8 @@ void BoundaryValues::ApplyPhysicalBoundariesOnCoarseLevel(
     if (apply_bndry_fn_[BoundaryFace::inner_x3]) {
       DispatchBoundaryFunctions(pmb, pmr->pcoarsec, time, dt,
                                 si, ei, sj, ej, pmb->cks, pmb->cke, 1,
-                                ph->coarse_prim_, pf->coarse_b_,
+                                ph->coarse_prim_, pdf->coarse_df_prim_,
+                                pf->coarse_b_,
                                 pnrrad->coarse_ir_, pcr->coarse_cr_,
                                 BoundaryFace::inner_x3,
                                 bvars_subset);
@@ -518,7 +553,8 @@ void BoundaryValues::ApplyPhysicalBoundariesOnCoarseLevel(
     if (apply_bndry_fn_[BoundaryFace::outer_x3]) {
       DispatchBoundaryFunctions(pmb, pmr->pcoarsec, time, dt,
                                 si, ei, sj, ej, pmb->cks, pmb->cke, 1,
-                                ph->coarse_prim_, pf->coarse_b_,
+                                ph->coarse_prim_, pdf->coarse_df_prim_,
+                                pf->coarse_b_,
                                 pnrrad->coarse_ir_, pcr->coarse_cr_,
                                 BoundaryFace::outer_x3,
                                 bvars_subset);
@@ -551,6 +587,11 @@ void BoundaryValues::ProlongateGhostCells(const NeighborBlock& nb,
   //(unique to Hydro, PassiveScalars): swap ptrs to (w, coarse_prim) from (u, coarse_cons)
   pmr->SetHydroRefinement(HydroBoundaryQuantity::prim);
   // (r, coarse_r) from (s, coarse_s)
+  if (NDUSTFLUIDS > 0) {
+    DustFluids *pdf = pmb->pdustfluids;
+    //pmr->SetDustFluidsRefinement(DustFluidsBoundaryQuantity::prim_df);
+    pmr->pvars_cc_[pdf->refinement_idx] = std::make_tuple(&pdf->df_prim, &pdf->coarse_df_prim_);
+  }
   if (NSCALARS > 0) {
     PassiveScalars *ps = pmb->pscalars;
     pmr->pvars_cc_[ps->refinement_idx] = std::make_tuple(&ps->r, &ps->coarse_r_);
@@ -576,6 +617,15 @@ void BoundaryValues::ProlongateGhostCells(const NeighborBlock& nb,
 
   // swap back MeshRefinement ptrs to standard/coarse conserved variable arrays:
   pmr->SetHydroRefinement(HydroBoundaryQuantity::cons);
+  if (NDUSTFLUIDS > 0) {
+    DustFluids *pdf = pmb->pdustfluids;
+    //pmr->SetDustFluidsRefinement(DustFluidsBoundaryQuantity::cons_df);
+    if (pmb->pdustfluids->dfdif.dustfluids_diffusion_defined)
+      pmr->pvars_cc_[pdf->dfccdif.refinement_idx] = std::make_tuple(&(pdf->dfccdif.diff_mom_cc),
+          &(pdf->dfccdif.coarse_diff_mom_cc_));
+    pmr->pvars_cc_[pdf->refinement_idx] = std::make_tuple(&pdf->df_cons, &pdf->coarse_df_cons_);
+  }
+
   if (NSCALARS > 0) {
     PassiveScalars *ps = pmb->pscalars;
     pmr->pvars_cc_[ps->refinement_idx] = std::make_tuple(&ps->s, &ps->coarse_s_);
@@ -664,6 +714,11 @@ void BoundaryValues::ProlongateGhostCells(const NeighborBlock& nb,
   // calculate conservative variables
   pmb->peos->PrimitiveToConserved(ph->w, pf->bcc, ph->u, pmb->pcoord,
                                   fsi, fei, fsj, fej, fsk, fek);
+  if (NDUSTFLUIDS > 0) {
+    DustFluids *pdf = pmb->pdustfluids;
+    pmb->peos->DustFluidsPrimitiveToConserved(pdf->df_prim, pdf->dfccdif.diff_mom_cc,
+                              pdf->df_cons, pmb->pcoord, fsi, fei, fsj, fej, fsk, fek);
+  }
   if (NSCALARS > 0) {
     PassiveScalars *ps = pmb->pscalars;
     pmb->peos->PassiveScalarPrimitiveToConserved(ps->r, ph->u, ps->s, pmb->pcoord,

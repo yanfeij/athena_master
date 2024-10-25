@@ -48,13 +48,17 @@ class OrbitalAdvection{
   ~OrbitalAdvection();
 
   void InitializeOrbitalAdvection();
-  void SetOrbitalAdvectionCC(const AthenaArray<Real> &u, const AthenaArray<Real> &s);
+  void SetOrbitalAdvectionCC(const AthenaArray<Real> &u,
+                             const AthenaArray<Real> &cons_df,
+                             const AthenaArray<Real> &s);
   void SetOrbitalAdvectionFC(const FaceField &b);
   void CalculateOrbitalAdvectionCC(const Real dt, AthenaArray<Real> &u,
-                                   AthenaArray<Real> &s);
+                     AthenaArray<Real> &cons_df, AthenaArray<Real> &s);
   void CalculateOrbitalAdvectionFC(const Real dt, EdgeField &e);
   void ConvertOrbitalSystem(const AthenaArray<Real> &w0, const AthenaArray<Real> &u0,
                             const OrbitalTransform trans);
+  void ConvertOrbitalSystemDustFluids(const int dust_id, const AthenaArray<Real> &df_prim0,
+                       const AthenaArray<Real> &df_cons0, const OrbitalTransform trans);
   void ResetOrbitalSystemConversionFlag();
   Real NewOrbitalAdvectionDt();
   void RemapFluxPlm(AthenaArray<Real> &pflux_, const AthenaArray<Real> &pbuf_,
@@ -90,6 +94,8 @@ class OrbitalAdvection{
 
   // TODO(tomo-ono): Consider replace these buffers.
   AthenaArray<Real> w_orb, u_orb; // buffer for orbital advection system output
+  AthenaArray<Real> df_prim_orb, df_cons_orb; // buffer for orbital advection system output for dust fluids
+
 
   OrbitalBoundaryCommunication *orb_bc;
 
@@ -108,6 +114,7 @@ class OrbitalAdvection{
   Mesh *pm_;              // ptr to Mesh
   Hydro *ph_;             // ptr to Hydro
   Field *pf_;             // ptr to Field
+  DustFluids     *pdf_;   // ptr to DustFluids
   Coordinates *pco_;      // ptr to Coordinates
   BoundaryValues *pbval_; // ptr to Boundaryvalues
   PassiveScalars *ps_;    // ptr to PassiveScalars
@@ -120,7 +127,7 @@ class OrbitalAdvection{
   // meshblock size
   int nc1, nc2, nc3;
   int onx;
-  int xorder, xgh;
+  int xorder, xgh, dust_xorder;;
 
   // grids
   AthenaArray<Real> orc, orf[2]; // orbital residual of cell-centered values
@@ -130,7 +137,7 @@ class OrbitalAdvection{
   Real dx;
 
   // orbital blocks with two meshblock orbital length for variables
-  AthenaArray<Real> orbital_cons, orbital_scalar;
+  AthenaArray<Real> orbital_cons, orbital_df_cons, orbital_scalar;
   AthenaArray<Real> orbital_b1, orbital_b2;
 
   // For Orbital Remapping
@@ -140,6 +147,7 @@ class OrbitalAdvection{
   AthenaArray<int>  ofc_coarse, off_coarse[2];
 
   AthenaArray<Real> u_coarse_send, u_coarse_recv, u_temp;
+  AthenaArray<Real> df_cons_coarse_send, df_cons_coarse_recv, df_cons_temp;
   AthenaArray<Real> s_coarse_send, s_coarse_recv, s_temp;
   AthenaArray<Real> b1_coarse_send, b2_coarse_send;
   FaceField b_temp, b_coarse_recv;
@@ -148,7 +156,9 @@ class OrbitalAdvection{
 
   // pencil(1D) buffer
   AthenaArray<Real> hbuf;  // pencil buffer for shallow copy for hydro calculation
+  AthenaArray<Real> dfbuf;    // pencil buffer for shallow copy for dust fluids calculation
   AthenaArray<Real> pflux; // pencil buffer for flux
+  AthenaArray<Real> pflux_df; // pencil buffer for flux (dust fluids)
 
   // buffer for ppm
   AthenaArray<Real> s_src[5], d_src[13]; // s_src for deep copy, d_src for shallow copy

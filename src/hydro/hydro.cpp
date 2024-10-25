@@ -60,6 +60,11 @@ Hydro::Hydro(MeshBlock *pmb, ParameterInput *pin) :
 
   pmb->RegisterMeshBlockData(u);
 
+  if (NDUSTFLUIDS > 0) {
+    w_n.NewAthenaArray(NHYDRO, nc3, nc2, nc1);
+    u_af_src.NewAthenaArray(NHYDRO, nc3, nc2, nc1);
+  }
+
   // Allocate optional memory primitive/conserved variable registers for time-integrator
   if (pmb->precon->xorder == 4) {
     // fourth-order hydro cell-centered approximations

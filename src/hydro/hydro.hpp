@@ -32,6 +32,7 @@ class ParameterInput;
 class Hydro {
   friend class Field;
   friend class EquationOfState;
+  friend class DustFluids;
  public:
   Hydro(MeshBlock *pmb, ParameterInput *pin);
 
@@ -43,7 +44,9 @@ class Hydro {
   AthenaArray<Real> u, w;        // time-integrator memory register #1
   AthenaArray<Real> u1, w1;      // time-integrator memory register #2
   AthenaArray<Real> u2;          // time-integrator memory register #3
+  AthenaArray<Real> u_af_src;       // conservatives after explicit source terms
   AthenaArray<Real> u0, fl_div; // rkl2 STS memory registers;
+  AthenaArray<Real> w_n;            // time-integrator memory register used in dust-gas drag integrators
   // for the HL3D2 solver
   AthenaArray<Real> dvn, dvt;
   // (no more than MAX_NREGISTER allowed)

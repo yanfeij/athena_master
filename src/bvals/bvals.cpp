@@ -27,6 +27,8 @@
 #include "../athena.hpp"
 #include "../athena_arrays.hpp"
 #include "../coordinates/coordinates.hpp"
+#include "../dustfluids/dustfluids.hpp"
+#include "../dustfluids/dustfluids_diffusion_cc/cell_center_diffusions.hpp"
 #include "../cr/cr.hpp"
 #include "../eos/eos.hpp"
 #include "../field/field.hpp"
@@ -137,6 +139,11 @@ BoundaryValues::BoundaryValues(MeshBlock *pmb, BoundaryFlag *input_bcs,
     if (xorder_ <= 2) xgh_ = 1;
     else
       xgh_ = 2;
+
+    dust_xorder_ = pin->GetOrAddInteger("dust", "dust_xorder", xorder_);
+    if (dust_xorder_ > xorder_)
+      dust_xorder_ = xorder_;
+
 
     shearing_box = pin->GetOrAddInteger("orbital_advection","shboxcoord",1);
     if (shearing_box != 1 && shearing_box != 2) {
@@ -468,6 +475,10 @@ void BoundaryValues::ApplyPhysicalBoundaries(const Real time, const Real dt,
     pf = pmb->pfield;
     // pfbvar = dynamic_cast<FaceCenteredBoundaryVariable *>(bvars_main_int[1]);
   }
+  DustFluids *pdf = nullptr;
+  if (NDUSTFLUIDS > 0) {
+    pdf = pmb->pdustfluids;
+  }
   PassiveScalars *ps = nullptr;
   if (NSCALARS > 0) {
     ps = pmb->pscalars;
@@ -494,7 +505,8 @@ void BoundaryValues::ApplyPhysicalBoundaries(const Real time, const Real dt,
   if (apply_bndry_fn_[BoundaryFace::inner_x1]) {
     DispatchBoundaryFunctions(pmb, pco, time, dt,
                               pmb->is, pmb->ie, bjs, bje, bks, bke, NGHOST,
-                              ph->w, pf->b, prad->ir, pcr->u_cr,
+                              ph->w, pdf->df_prim,
+                              pf->b, prad->ir, pcr->u_cr,
                               BoundaryFace::inner_x1, bvars_subset);
     // KGF: COUPLING OF QUANTITIES (must be manually specified)
     if (MAGNETIC_FIELDS_ENABLED) {
@@ -504,6 +516,10 @@ void BoundaryValues::ApplyPhysicalBoundaries(const Real time, const Real dt,
     }
     pmb->peos->PrimitiveToConserved(ph->w, pf->bcc, ph->u, pco,
                                     pmb->is-NGHOST, pmb->is-1, bjs, bje, bks, bke);
+    if (NDUSTFLUIDS > 0) {
+      pmb->peos->DustFluidsPrimitiveToConserved(pdf->df_prim, pdf->dfccdif.diff_mom_cc,
+                      pdf->df_cons, pco, pmb->is-NGHOST, pmb->is-1, bjs, bje, bks, bke);
+    }
     if (NSCALARS > 0) {
       pmb->peos->PassiveScalarPrimitiveToConserved(
           ps->r, ph->u, ps->s, pco, pmb->is-NGHOST, pmb->is-1, bjs, bje, bks, bke);
@@ -514,7 +530,7 @@ void BoundaryValues::ApplyPhysicalBoundaries(const Real time, const Real dt,
   if (apply_bndry_fn_[BoundaryFace::outer_x1]) {
     DispatchBoundaryFunctions(pmb, pco, time, dt,
                               pmb->is, pmb->ie, bjs, bje, bks, bke, NGHOST,
-                              ph->w, pf->b, prad->ir, pcr->u_cr,
+                              ph->w, pdf->df_prim, pf->b, prad->ir, pcr->u_cr,
                               BoundaryFace::outer_x1, bvars_subset);
     // KGF: COUPLING OF QUANTITIES (must be manually specified)
     if (MAGNETIC_FIELDS_ENABLED) {
@@ -524,6 +540,10 @@ void BoundaryValues::ApplyPhysicalBoundaries(const Real time, const Real dt,
     }
     pmb->peos->PrimitiveToConserved(ph->w, pf->bcc, ph->u, pco,
                                     pmb->ie+1, pmb->ie+NGHOST, bjs, bje, bks, bke);
+    if (NDUSTFLUIDS > 0) {
+      pmb->peos->DustFluidsPrimitiveToConserved(pdf->df_prim, pdf->dfccdif.diff_mom_cc,
+                      pdf->df_cons, pco, pmb->ie+1, pmb->ie+NGHOST, bjs, bje, bks, bke);
+    }
     if (NSCALARS > 0) {
       pmb->peos->PassiveScalarPrimitiveToConserved(
           ps->r, ph->u, ps->s, pco, pmb->ie+1, pmb->ie+NGHOST, bjs, bje, bks, bke);
@@ -535,7 +555,7 @@ void BoundaryValues::ApplyPhysicalBoundaries(const Real time, const Real dt,
     if (apply_bndry_fn_[BoundaryFace::inner_x2]) {
       DispatchBoundaryFunctions(pmb, pco, time, dt,
                                 bis, bie, pmb->js, pmb->je, bks, bke, NGHOST,
-                                ph->w, pf->b, prad->ir, pcr->u_cr,
+                                ph->w, pdf->df_prim, pf->b, prad->ir, pcr->u_cr,
                                 BoundaryFace::inner_x2, bvars_subset);
       // KGF: COUPLING OF QUANTITIES (must be manually specified)
       if (MAGNETIC_FIELDS_ENABLED) {
@@ -545,6 +565,10 @@ void BoundaryValues::ApplyPhysicalBoundaries(const Real time, const Real dt,
       }
       pmb->peos->PrimitiveToConserved(ph->w, pf->bcc, ph->u, pco,
                                       bis, bie, pmb->js-NGHOST, pmb->js-1, bks, bke);
+      if (NDUSTFLUIDS > 0) {
+        pmb->peos->DustFluidsPrimitiveToConserved(pdf->df_prim, pdf->dfccdif.diff_mom_cc,
+                        pdf->df_cons, pco, bis, bie, pmb->js-NGHOST, pmb->js-1, bks, bke);
+      }
       if (NSCALARS > 0) {
         pmb->peos->PassiveScalarPrimitiveToConserved(
             ps->r, ph->u, ps->s, pco, bis, bie, pmb->js-NGHOST, pmb->js-1, bks, bke);
@@ -562,7 +586,7 @@ void BoundaryValues::ApplyPhysicalBoundaries(const Real time, const Real dt,
     if (apply_bndry_fn_[BoundaryFace::outer_x2]) {
       DispatchBoundaryFunctions(pmb, pco, time, dt,
                                 bis, bie, pmb->js, pmb->je, bks, bke, NGHOST,
-                                ph->w, pf->b, prad->ir, pcr->u_cr,
+                                ph->w, pdf->df_prim, pf->b, prad->ir, pcr->u_cr,
                                 BoundaryFace::outer_x2, bvars_subset);
       // KGF: COUPLING OF QUANTITIES (must be manually specified)
       if (MAGNETIC_FIELDS_ENABLED) {
@@ -572,6 +596,10 @@ void BoundaryValues::ApplyPhysicalBoundaries(const Real time, const Real dt,
       }
       pmb->peos->PrimitiveToConserved(ph->w, pf->bcc, ph->u, pco,
                                       bis, bie, pmb->je+1, pmb->je+NGHOST, bks, bke);
+      if (NDUSTFLUIDS > 0) {
+        pmb->peos->DustFluidsPrimitiveToConserved(pdf->df_prim, pdf->dfccdif.diff_mom_cc,
+                        pdf->df_cons, pco, bis, bie, pmb->je+1, pmb->je+NGHOST, bks, bke);
+      }
       if (NSCALARS > 0) {
         pmb->peos->PassiveScalarPrimitiveToConserved(
             ps->r, ph->u, ps->s, pco, bis, bie, pmb->je+1, pmb->je+NGHOST, bks, bke);
@@ -587,7 +615,7 @@ void BoundaryValues::ApplyPhysicalBoundaries(const Real time, const Real dt,
     if (apply_bndry_fn_[BoundaryFace::inner_x3]) {
       DispatchBoundaryFunctions(pmb, pco, time, dt,
                                 bis, bie, bjs, bje, pmb->ks, pmb->ke, NGHOST,
-                                ph->w, pf->b, prad->ir, pcr->u_cr,
+                                ph->w, pdf->df_prim, pf->b, prad->ir, pcr->u_cr,
                                 BoundaryFace::inner_x3, bvars_subset);
       // KGF: COUPLING OF QUANTITIES (must be manually specified)
       if (MAGNETIC_FIELDS_ENABLED) {
@@ -597,6 +625,10 @@ void BoundaryValues::ApplyPhysicalBoundaries(const Real time, const Real dt,
       }
       pmb->peos->PrimitiveToConserved(ph->w, pf->bcc, ph->u, pco,
                                       bis, bie, bjs, bje, pmb->ks-NGHOST, pmb->ks-1);
+      if (NDUSTFLUIDS > 0) {
+        pmb->peos->DustFluidsPrimitiveToConserved(pdf->df_prim, pdf->dfccdif.diff_mom_cc,
+                        pdf->df_cons, pco, bis, bie, bjs, bje, pmb->ks-NGHOST, pmb->ks-1);
+      }
       if (NSCALARS > 0) {
         pmb->peos->PassiveScalarPrimitiveToConserved(
             ps->r, ph->u, ps->s, pco, bis, bie, bjs, bje, pmb->ks-NGHOST, pmb->ks-1);
@@ -616,7 +648,7 @@ void BoundaryValues::ApplyPhysicalBoundaries(const Real time, const Real dt,
     if (apply_bndry_fn_[BoundaryFace::outer_x3]) {
       DispatchBoundaryFunctions(pmb, pco, time, dt,
                                 bis, bie, bjs, bje, pmb->ks, pmb->ke, NGHOST,
-                                ph->w, pf->b, prad->ir, pcr->u_cr,
+                                ph->w, pdf->df_prim, pf->b, prad->ir, pcr->u_cr,
                                 BoundaryFace::outer_x3, bvars_subset);
       // KGF: COUPLING OF QUANTITIES (must be manually specified)
       if (MAGNETIC_FIELDS_ENABLED) {
@@ -626,6 +658,10 @@ void BoundaryValues::ApplyPhysicalBoundaries(const Real time, const Real dt,
       }
       pmb->peos->PrimitiveToConserved(ph->w, pf->bcc, ph->u, pco,
                                       bis, bie, bjs, bje, pmb->ke+1, pmb->ke+NGHOST);
+      if (NDUSTFLUIDS > 0) {
+        pmb->peos->DustFluidsPrimitiveToConserved(pdf->df_prim, pdf->dfccdif.diff_mom_cc,
+                        pdf->df_cons, pco, bis, bie, bjs, bje, pmb->ke+1, pmb->ke+NGHOST);
+      }
       if (NSCALARS > 0) {
         pmb->peos->PassiveScalarPrimitiveToConserved(
             ps->r, ph->u, ps->s, pco, bis, bie, bjs, bje, pmb->ke+1, pmb->ke+NGHOST);
@@ -650,16 +686,17 @@ void BoundaryValues::ApplyPhysicalBoundaries(const Real time, const Real dt,
 void BoundaryValues::DispatchBoundaryFunctions(
     MeshBlock *pmb, Coordinates *pco, Real time, Real dt,
     int il, int iu, int jl, int ju, int kl, int ku, int ngh,
-    AthenaArray<Real> &prim, FaceField &b, AthenaArray<Real> &ir,
+    AthenaArray<Real> &prim, AthenaArray<Real> &prim_df,
+    FaceField &b, AthenaArray<Real> &ir,
     AthenaArray<Real> &u_cr,  BoundaryFace face,
     std::vector<BoundaryVariable *> bvars_subset) {
   if (block_bcs[face] ==  BoundaryFlag::user) {  // user-enrolled BCs
-    pmy_mesh_->BoundaryFunction_[face](pmb, pco, prim, b, time, dt,
+    pmy_mesh_->BoundaryFunction_[face](pmb, pco, prim, prim_df, b, time, dt,
                                        il, iu, jl, ju, kl, ku, NGHOST);
 
     // user-defined  boundary for radiation
     if ((NR_RADIATION_ENABLED || IM_RADIATION_ENABLED)) {
-      pmy_mesh_->RadBoundaryFunc_[face](pmb,pco,pmb->pnrrad,prim,b, ir,time,dt,
+      pmy_mesh_->RadBoundaryFunc_[face](pmb,pco,pmb->pnrrad,prim, b, ir,time,dt,
                                              il,iu,jl,ju,kl,ku,NGHOST);
     }
 

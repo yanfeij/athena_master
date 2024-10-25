@@ -49,6 +49,7 @@ class NRRadiation;
 class IMRadiation;
 class CosmicRay;
 class Field;
+class DustFluids;
 class Particles;
 class PassiveScalars;
 class Gravity;
@@ -123,6 +124,7 @@ class MeshBlock {
   CosmicRay *pcr;
   Field *pfield;
   Gravity *pgrav;
+  DustFluids *pdustfluids;
   PassiveScalars *pscalars;
   EquationOfState *peos;
   OrbitalAdvection *porb;
@@ -219,6 +221,11 @@ class Mesh {
   friend class Gravity;
   friend class HydroDiffusion;
   friend class FieldDiffusion;
+  friend class DustFluids;
+  friend class DustFluidsSourceTerms;
+  friend class DustFluidsDiffusion;
+  friend class DustFluidsCellCenterDiffusion;
+  friend class DustGasDrag;
   friend class OrbitalAdvection;
   friend class Particles;
 #ifdef HDF5OUTPUT
@@ -342,12 +349,14 @@ class Mesh {
 
   AMRFlagFunc AMRFlag_;
   SrcTermFunc UserSourceTerm_;
+  DustStoppingTimeFunc UserStoppingTime_;
   TimeStepFunc UserTimeStep_;
   HistoryOutputFunc *user_history_func_;
   MetricFunc UserMetric_;
   ViscosityCoeffFunc ViscosityCoeff_;
   ConductionCoeffFunc ConductionCoeff_;
   FieldDiffusionCoeffFunc FieldDiffusivity_;
+  DustDiffusionCoeffFunc DustDiffusivity_;
   OrbitalVelocityFunc OrbitalVelocity_, OrbitalVelocityDerivative_[2];
   MGBoundaryFunc MGGravityBoundaryFunction_[6];
   MGSourceMaskFunc MGGravitySourceMaskFunction_;
@@ -402,6 +411,7 @@ class Mesh {
   void EnrollUserRefinementCondition(AMRFlagFunc amrflag);
   void EnrollUserMeshGenerator(CoordinateDirection dir, MeshGenFunc my_mg);
   void EnrollUserExplicitSourceFunction(SrcTermFunc my_func);
+  void EnrollUserDustStoppingTime(DustStoppingTimeFunc my_func);
   void EnrollUserTimeStepFunction(TimeStepFunc my_func);
   void AllocateUserHistoryOutput(int n);
   void EnrollUserHistoryOutput(int i, HistoryOutputFunc my_func, const char *name,
@@ -410,6 +420,7 @@ class Mesh {
   void EnrollViscosityCoefficient(ViscosityCoeffFunc my_func);
   void EnrollConductionCoefficient(ConductionCoeffFunc my_func);
   void EnrollFieldDiffusivity(FieldDiffusionCoeffFunc my_func);
+  void EnrollDustDiffusivity(DustDiffusionCoeffFunc my_func);
   void EnrollOrbitalVelocity(OrbitalVelocityFunc my_func);
   void EnrollOrbitalVelocityDerivative(int i, OrbitalVelocityFunc my_func);
   void SetGravitationalConstant(Real g) { four_pi_G_=4.0*PI*g; }

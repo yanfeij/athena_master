@@ -30,6 +30,9 @@
 #include "../athena_arrays.hpp"
 #include "../bvals/bvals.hpp"
 #include "../coordinates/coordinates.hpp"
+#include "../dustfluids/dustfluids.hpp"
+#include "../dustfluids/dustfluids_diffusion/dustfluids_diffusion.hpp"
+#include "../dustfluids/dustfluids_diffusion_cc/cell_center_diffusions.hpp"
 #include "../cr/cr.hpp"
 #include "../eos/eos.hpp"
 #include "../fft/athena_fft.hpp"
@@ -115,8 +118,8 @@ Mesh::Mesh(ParameterInput *pin, int mesh_test) :
     MeshGenerator_{UniformMeshGeneratorX1, UniformMeshGeneratorX2,
                    UniformMeshGeneratorX3},
     BoundaryFunction_{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},
-    AMRFlag_{}, UserSourceTerm_{}, UserTimeStep_{}, ViscosityCoeff_{},
-    ConductionCoeff_{}, FieldDiffusivity_{},
+    AMRFlag_{}, UserSourceTerm_{}, UserStoppingTime_{}, UserTimeStep_{},
+    ViscosityCoeff_{}, ConductionCoeff_{}, FieldDiffusivity_{}, DustDiffusivity_{},
     OrbitalVelocity_{}, OrbitalVelocityDerivative_{nullptr, nullptr},
     MGGravityBoundaryFunction_{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},
     MGGravitySourceMaskFunction_{} {
@@ -608,9 +611,9 @@ Mesh::Mesh(ParameterInput *pin, IOWrapper& resfile, int mesh_test) :
     MeshGenerator_{UniformMeshGeneratorX1, UniformMeshGeneratorX2,
                    UniformMeshGeneratorX3},
     BoundaryFunction_{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},
-    AMRFlag_{}, UserSourceTerm_{}, UserTimeStep_{}, ViscosityCoeff_{},
-    ConductionCoeff_{}, FieldDiffusivity_{},
-    OrbitalVelocity_{}, OrbitalVelocityDerivative_{nullptr, nullptr},
+    AMRFlag_{}, UserSourceTerm_{}, UserStoppingTime_{},
+    UserTimeStep_{}, ViscosityCoeff_{}, ConductionCoeff_{}, FieldDiffusivity_{},
+    DustDiffusivity_{}, OrbitalVelocity_{}, OrbitalVelocityDerivative_{nullptr, nullptr},
     MGGravityBoundaryFunction_{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},
     MGGravitySourceMaskFunction_{} {
   std::stringstream msg;
@@ -1314,6 +1317,15 @@ void Mesh::EnrollUserExplicitSourceFunction(SrcTermFunc my_func) {
 }
 
 //----------------------------------------------------------------------------------------
+//! \fn void Mesh::EnrollUserDustStoppingTime(DustStoppingTimeFunc my_func)
+//! \brief Enroll a user-defined dust stopping time function
+
+void Mesh::EnrollUserDustStoppingTime(DustStoppingTimeFunc my_func) {
+  UserStoppingTime_ = my_func;
+  return;
+}
+
+//----------------------------------------------------------------------------------------
 //! \fn void Mesh::EnrollUserTimeStepFunction(TimeStepFunc my_func)
 //! \brief Enroll a user-defined time step function
 
@@ -1388,6 +1400,16 @@ void Mesh::EnrollFieldDiffusivity(FieldDiffusionCoeffFunc my_func) {
   FieldDiffusivity_ = my_func;
   return;
 }
+
+//----------------------------------------------------------------------------------------
+//! \fn void Mesh::EnrollDustDiffusivity(DustDiffusionCoeffFunc my_func)
+//! \brief Enroll a user-defined dust fluids diffusivity function
+
+void Mesh::EnrollDustDiffusivity(DustDiffusionCoeffFunc my_func) {
+  DustDiffusivity_ = my_func;
+  return;
+}
+
 
 //----------------------------------------------------------------------------------------
 //! \fn void Mesh::EnrollOrbitalVelocity(OrbitalVelocityFunc my_func)
@@ -1520,6 +1542,19 @@ void Mesh::Initialize(int res_flag, ParameterInput *pin) {
         if (MAGNETIC_FIELDS_ENABLED)
           pmb->pfield->fbvar.SendBoundaryBuffers();
         // and (conserved variable) passive scalar masses:
+
+        if (NDUSTFLUIDS > 0) {
+          if (pmb->pdustfluids->dfdif.dustfluids_diffusion_defined) {
+            pmb->pdustfluids->dfccdif.diffccbvar.SwapDustDiffusionQuantity(pmb->pdustfluids->dfccdif.diff_mom_cc,
+                                                  DustDiffusionBoundaryQuantity::cons_diff);
+            pmb->pdustfluids->dfccdif.diffccbvar.SendBoundaryBuffers();
+          }
+          pmb->pdustfluids->dfbvar.SwapDustFluidsQuantity(pmb->pdustfluids->df_cons,
+                                                 DustFluidsBoundaryQuantity::cons_df);
+          pmb->pdustfluids->dfbvar.SendBoundaryBuffers();
+        }
+
+
         if (NSCALARS > 0) {
           pmb->pscalars->sbvar.var_cc = &(pmb->pscalars->s);
           if (pmb->pmy_mesh->multilevel) {
@@ -1543,6 +1578,14 @@ void Mesh::Initialize(int res_flag, ParameterInput *pin) {
         pmb->phydro->hbvar.ReceiveAndSetBoundariesWithWait();
         if (MAGNETIC_FIELDS_ENABLED)
           pmb->pfield->fbvar.ReceiveAndSetBoundariesWithWait();
+
+        if (NDUSTFLUIDS > 0) {
+          if (pmb->pdustfluids->dfdif.dustfluids_diffusion_defined)
+            pmb->pdustfluids->dfccdif.diffccbvar.ReceiveAndSetBoundariesWithWait();
+          pmb->pdustfluids->dfbvar.ReceiveAndSetBoundariesWithWait();
+        }
+
+
         if (NSCALARS > 0)
           pmb->pscalars->sbvar.ReceiveAndSetBoundariesWithWait();
 
@@ -1553,6 +1596,13 @@ void Mesh::Initialize(int res_flag, ParameterInput *pin) {
 
         if (shear_periodic && orbital_advection==0) {
           pmb->phydro->hbvar.AddHydroShearForInit();
+
+          if (NDUSTFLUIDS > 0) {
+            if (pmb->pdustfluids->dfdif.dustfluids_diffusion_defined)
+              pmb->pdustfluids->dfccdif.diffccbvar.AddDustDiffusionShearForInit();
+            pmb->pdustfluids->dfbvar.AddDustFluidsShearForInit();
+          }
+
 
           if (NR_RADIATION_ENABLED || IM_RADIATION_ENABLED)
             pmb->pnrrad->rad_bvar.AddRadShearForInit();
@@ -1580,6 +1630,15 @@ void Mesh::Initialize(int res_flag, ParameterInput *pin) {
           pmb->phydro->hbvar.SwapHydroQuantity(pmb->phydro->w,
                                                HydroBoundaryQuantity::prim);
           pmb->phydro->hbvar.SendBoundaryBuffers();
+
+
+          if (NDUSTFLUIDS > 0) {
+            pmb->pdustfluids->dfbvar.SwapDustFluidsQuantity(pmb->pdustfluids->df_prim,
+                                                 DustFluidsBoundaryQuantity::prim_df);
+            pmb->pdustfluids->dfbvar.SendBoundaryBuffers();
+          }
+
+
           if (NSCALARS > 0) {
             pmb->pscalars->sbvar.var_cc = &(pmb->pscalars->r);
             if (pmb->pmy_mesh->multilevel) {
@@ -1594,6 +1653,13 @@ void Mesh::Initialize(int res_flag, ParameterInput *pin) {
         for (int i=0; i<nblocal; ++i) {
           pmb = my_blocks(i); pbval = pmb->pbval;
           pmb->phydro->hbvar.ReceiveAndSetBoundariesWithWait();
+
+          if (NDUSTFLUIDS > 0) {
+            if (pmb->pdustfluids->dfdif.dustfluids_diffusion_defined)
+              pmb->pdustfluids->dfccdif.diffccbvar.ReceiveAndSetBoundariesWithWait();
+            pmb->pdustfluids->dfbvar.ReceiveAndSetBoundariesWithWait();
+          }
+
           if (NSCALARS > 0) {
             pmb->pscalars->sbvar.ReceiveAndSetBoundariesWithWait();
           }
@@ -1601,6 +1667,14 @@ void Mesh::Initialize(int res_flag, ParameterInput *pin) {
                                      pbval->bvars_main_int);
           pmb->phydro->hbvar.SwapHydroQuantity(pmb->phydro->u,
                                                HydroBoundaryQuantity::cons);
+          if (NDUSTFLUIDS > 0) {
+            if (pmb->pdustfluids->dfdif.dustfluids_diffusion_defined)
+              pmb->pdustfluids->dfccdif.diffccbvar.SwapDustDiffusionQuantity(pmb->pdustfluids->dfccdif.diff_mom_cc,
+                                                    DustDiffusionBoundaryQuantity::cons_diff);
+            pmb->pdustfluids->dfbvar.SwapDustFluidsQuantity(pmb->pdustfluids->df_cons,
+                                                 DustFluidsBoundaryQuantity::cons_df);
+          }
+
           if (NSCALARS > 0) {
             pmb->pscalars->sbvar.var_cc = &(pmb->pscalars->s);
             if (pmb->pmy_mesh->multilevel) {
@@ -1630,11 +1704,13 @@ void Mesh::Initialize(int res_flag, ParameterInput *pin) {
       // Now do prolongation, compute primitives, apply BCs
       Hydro *ph;
       Field *pf;
+      DustFluids *pdf;
       PassiveScalars *ps;
 #pragma omp for private(pmb,pbval,ph,pf,ps)
       for (int i=0; i<nblocal; ++i) {
         pmb = my_blocks(i);
-        pbval = pmb->pbval, ph = pmb->phydro, pf = pmb->pfield, ps = pmb->pscalars;
+        pbval = pmb->pbval, ph = pmb->phydro, pf = pmb->pfield,
+        pdf = pmb->pdustfluids, ps = pmb->pscalars;
         if (multilevel)
           pbval->ProlongateBoundaries(time, 0.0, pbval->bvars_main_int);
 
@@ -1654,6 +1730,13 @@ void Mesh::Initialize(int res_flag, ParameterInput *pin) {
         pmb->peos->ConservedToPrimitive(ph->u, ph->w1, pf->b,
                                         ph->w, pf->bcc, pmb->pcoord,
                                         il, iu, jl, ju, kl, ku);
+
+        if (NDUSTFLUIDS > 0) {
+          pmb->peos->DustFluidsConservedToPrimitive(pdf->df_cons, pdf->dfccdif.diff_mom_cc,
+                          pdf->df_prim1, pdf->df_prim, pmb->pcoord, il, iu, jl, ju, kl, ku);
+        }
+
+
         if (NSCALARS > 0) {
           // r1/r_old for GR is currently unused:
           pmb->peos->PassiveScalarConservedToPrimitive(ps->s, ph->u, ps->r, ps->r,
@@ -1676,6 +1759,11 @@ void Mesh::Initialize(int res_flag, ParameterInput *pin) {
           //! * add MHD loop limit calculation for 4th order W(U)
           // Apply physical boundaries prior to 4th order W(U)
           ph->hbvar.SwapHydroQuantity(ph->w, HydroBoundaryQuantity::prim);
+          if (NDUSTFLUIDS > 0) {
+            int dust_xorder = pmb->pdustfluids->dust_xorder;
+            if (dust_xorder == 4)
+              pdf->dfbvar.SwapDustFluidsQuantity(pdf->df_prim, DustFluidsBoundaryQuantity::prim_df);
+          }
           if (NSCALARS > 0) {
             ps->sbvar.var_cc = &(ps->r);
             if (pmb->pmy_mesh->multilevel) {
@@ -1687,6 +1775,14 @@ void Mesh::Initialize(int res_flag, ParameterInput *pin) {
           pmb->peos->ConservedToPrimitiveCellAverage(ph->u, ph->w1, pf->b,
                                                      ph->w, pf->bcc, pmb->pcoord,
                                                      il, iu, jl, ju, kl, ku);
+
+          if (NDUSTFLUIDS > 0) {
+            int dust_xorder = pdf->dust_xorder;
+            if (dust_xorder == 4)
+              pmb->peos->DustFluidsConservedToPrimitiveCellAverage(
+                  pdf->df_cons, pdf->df_prim1, pdf->df_prim, pmb->pcoord, il, iu, jl, ju, kl, ku);
+          }
+
           if (NSCALARS > 0) {
             pmb->peos->PassiveScalarConservedToPrimitiveCellAverage(
                 ps->s, ps->r, ps->r, pmb->pcoord, il, iu, jl, ju, kl, ku);
@@ -1698,6 +1794,9 @@ void Mesh::Initialize(int res_flag, ParameterInput *pin) {
         // Swap Hydro and (possibly) passive scalar quantities in BoundaryVariable
         // interface from conserved to primitive formulations:
         ph->hbvar.SwapHydroQuantity(ph->w, HydroBoundaryQuantity::prim);
+        if (NDUSTFLUIDS > 0)
+          pdf->dfbvar.SwapDustFluidsQuantity(pdf->df_prim, DustFluidsBoundaryQuantity::prim_df);
+
         if (NSCALARS > 0) {
           ps->sbvar.var_cc = &(ps->r);
           if (pmb->pmy_mesh->multilevel) {
@@ -1730,13 +1829,20 @@ void Mesh::Initialize(int res_flag, ParameterInput *pin) {
       // Calc initial diffusion coefficients
 #pragma omp for private(pmb,ph,pf)
       for (int i=0; i<nblocal; ++i) {
-        pmb = my_blocks(i); ph = pmb->phydro, pf = pmb->pfield;
+        pmb = my_blocks(i); ph = pmb->phydro, pf = pmb->pfield,
+        pdf = pmb->pdustfluids;
         if (ph->hdif.hydro_diffusion_defined)
           ph->hdif.SetDiffusivity(ph->w, pf->bcc);
         if (MAGNETIC_FIELDS_ENABLED) {
           if (pf->fdif.field_diffusion_defined)
             pf->fdif.SetDiffusivity(ph->w, pf->bcc);
         }
+
+        if (NDUSTFLUIDS > 0) { // Calc initial dust stopping time, diffusivity and dust sound speed
+          pdf->SetDustFluidsProperties(pmb->pmy_mesh->time, ph->w, pdf->df_prim,
+              pdf->stopping_time_array, pdf->nu_dustfluids_array, pdf->cs_dustfluids_array);
+        }
+
       }
 
       if (!res_flag && adaptive) {
@@ -1884,12 +1990,14 @@ void Mesh::SetBlockSizeAndBoundaries(LogicalLocation loc, RegionSize &block_size
 void Mesh::CorrectMidpointInitialCondition() {
   MeshBlock *pmb;
   Hydro *ph;
+  DustFluids *pdf;
   PassiveScalars *ps;
-#pragma omp for private(pmb, ph, ps)
+#pragma omp for private(pmb, ph, pdf, ps)
   for (int nb=0; nb<nblocal; ++nb) {
     pmb = my_blocks(nb);
     ph = pmb->phydro;
     ps = pmb->pscalars;
+    pdf = pmb->pdustfluids;
 
     // Assume cell-centered analytic value is computed at all real cells, and ghost
     // cells with the cell-centered U have been exchanged
@@ -1897,7 +2005,7 @@ void Mesh::CorrectMidpointInitialCondition() {
         kl = pmb->ks, ku = pmb->ke;
 
     // Laplacian of cell-averaged conserved variables, scalar concentrations
-    AthenaArray<Real> delta_cons_, delta_s_;
+    AthenaArray<Real> delta_cons_, delta_df_cons_, delta_s_;
 
     // Allocate memory for 4D Laplacian
     int ncells4 = NHYDRO;
@@ -1922,6 +2030,25 @@ void Mesh::CorrectMidpointInitialCondition() {
             // We do not actually need to store all cell-centered cons. variables,
             // but the ConservedToPrimitivePointwise() implementation operates on 4D
             ph->u(n,k,j,i) = ph->u(n,k,j,i) + C*delta_cons_(n,k,j,i);
+          }
+        }
+      }
+    }
+
+    int ncells4_df = NDUSTVARS;
+    int nl_df = 0;
+    int nu_df = ncells4_df - 1;
+    if (NDUSTFLUIDS > 0) {
+      delta_df_cons_.NewAthenaArray(ncells4_df, pmb->ncells3, pmb->ncells2, pmb->ncells1);
+      pmb->pcoord->Laplacian(pdf->df_cons, delta_df_cons_, il, iu, jl, ju, kl, ku, nl_df, nu_df);
+    }
+
+    // Compute fourth-order approximation to cell-centered conserved variables
+    for (int n=nl_df; n<=nu_df; ++n) {
+      for (int k=kl; k<=ku; ++k) {
+        for (int j=jl; j<=ju; ++j) {
+          for (int i=il; i<=iu; ++i) {
+            pdf->df_cons(n,k,j,i) = pdf->df_cons(n,k,j,i) + C*delta_df_cons_(n,k,j,i);
           }
         }
       }
@@ -1974,6 +2101,20 @@ void Mesh::CorrectMidpointInitialCondition() {
     pmb->phydro->hbvar.SendBoundaryBuffers();
     if (MAGNETIC_FIELDS_ENABLED)
       pmb->pfield->fbvar.SendBoundaryBuffers();
+
+    // and (conserved variable) dust fluids mass
+    if (NDUSTFLUIDS > 0) {
+      if (pmb->pdustfluids->dfdif.dustfluids_diffusion_defined) {
+        pmb->pdustfluids->dfccdif.diffccbvar.SwapDustDiffusionQuantity(
+                                              pmb->pdustfluids->dfccdif.diff_mom_cc,
+                                              DustDiffusionBoundaryQuantity::cons_diff);
+        pmb->pdustfluids->dfccdif.diffccbvar.SendBoundaryBuffers();
+      }
+      pmb->pdustfluids->dfbvar.SwapDustFluidsQuantity(pmb->pdustfluids->df_cons,
+                                             DustFluidsBoundaryQuantity::cons_df);
+      pmb->pdustfluids->dfbvar.SendBoundaryBuffers();
+    }
+
     // and (conserved variable) passive scalar masses:
     if (NSCALARS > 0) {
       pmb->pscalars->sbvar.var_cc = &(pmb->pscalars->s);
@@ -1998,6 +2139,19 @@ void Mesh::CorrectMidpointInitialCondition() {
     pmb->phydro->hbvar.ReceiveAndSetBoundariesWithWait();
     if (MAGNETIC_FIELDS_ENABLED)
       pmb->pfield->fbvar.ReceiveAndSetBoundariesWithWait();
+
+    if (NDUSTFLUIDS > 0) {
+      if (pmb->pdustfluids->dfdif.dustfluids_diffusion_defined) {
+        pmb->pdustfluids->dfccdif.diffccbvar.SwapDustDiffusionQuantity(
+                                              pmb->pdustfluids->dfccdif.diff_mom_cc,
+                                              DustDiffusionBoundaryQuantity::cons_diff);
+        pmb->pdustfluids->dfccdif.diffccbvar.ReceiveAndSetBoundariesWithWait();
+      }
+      pmb->pdustfluids->dfbvar.SwapDustFluidsQuantity(pmb->pdustfluids->df_cons,
+                                             DustFluidsBoundaryQuantity::cons_df);
+      pmb->pdustfluids->dfbvar.ReceiveAndSetBoundariesWithWait();
+    }
+
     if (NSCALARS > 0) {
       pmb->pscalars->sbvar.var_cc = &(pmb->pscalars->s);
       if (pmb->pmy_mesh->multilevel) {
@@ -2015,6 +2169,12 @@ void Mesh::CorrectMidpointInitialCondition() {
 
     if (shear_periodic && orbital_advection==0) {
       pmb->phydro->hbvar.AddHydroShearForInit();
+
+      if (NDUSTFLUIDS > 0) {
+        if (pmb->pdustfluids->dfdif.dustfluids_diffusion_defined)
+          pmb->pdustfluids->dfccdif.diffccbvar.AddDustDiffusionShearForInit();
+        pmb->pdustfluids->dfbvar.AddDustFluidsShearForInit();
+      }
       if (NR_RADIATION_ENABLED || IM_RADIATION_ENABLED) {
         pmb->pnrrad->rad_bvar.AddRadShearForInit();
       }
@@ -2072,6 +2232,11 @@ void Mesh::ReserveMeshBlockPhysIDs() {
   if (SELF_GRAVITY_ENABLED) {
     ReserveTagPhysIDs(CellCenteredBoundaryVariable::max_phys_id);
   }
+
+  if (NDUSTFLUIDS > 0) {
+    ReserveTagPhysIDs(DustFluidsBoundaryVariable::max_phys_id);
+  }
+
   if (NSCALARS > 0) {
     ReserveTagPhysIDs(CellCenteredBoundaryVariable::max_phys_id);
   }

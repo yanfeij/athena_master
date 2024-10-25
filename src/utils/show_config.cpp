@@ -41,6 +41,23 @@ void ShowConfig() {
   } else {
     std::cout<<"  General relativity:         OFF " << std::endl;
   }
+  if (SELF_GRAVITY_ENABLED == 1) {
+    std::cout<<"  Self-Gravity:               FFT" << std::endl;
+  } else if (SELF_GRAVITY_ENABLED == 2) {
+    std::cout<<"  Self-Gravity:               Multigrid" << std::endl;
+  } else {
+    std::cout<<"  Self-Gravity:               OFF" << std::endl;
+  }
+  if (NDUSTFLUIDS > 0) {
+    std::cout<<"  Dust Fluids Species:        " << NDUSTFLUIDS << std::endl;
+  } else {
+    std::cout<<"  Dust Fluids Species:        OFF" << std::endl;
+  }
+  if (NSCALARS > 0) {
+    std::cout<<"  Passive Scalars:            " << NSCALARS << std::endl;
+  } else {
+    std::cout<<"  Passive Scalars:            OFF" << std::endl;
+  }
   if (NR_RADIATION_ENABLED) {
     std::cout<<"  Radiative Transfer:         ON" << std::endl;
   } else {

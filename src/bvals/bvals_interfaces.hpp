@@ -31,6 +31,8 @@ class MeshBlock;
 class MeshBlockTree;
 class Hydro;
 class Field;
+class DustFluids;
+class DustFluidsCellCenterDiffusion;
 class ParameterInput;
 class Coordinates;
 class BoundaryValues;
@@ -93,6 +95,9 @@ enum class BoundaryStatus {waiting, arrived, completed};
 
 //! flags to mark which variables are reversed across polar boundary
 constexpr const bool flip_across_pole_hydro[] = {false, false, true, true, false};
+//! flags to mark which variables are reversed across polar boundary, for dust fluids variables
+constexpr const bool flip_across_pole_dustfluids[]    = {false, false, true, true};
+constexpr const bool flip_across_pole_dustdiffusion[] = {false, false, true, true};
 //! flags to mark which variables are reversed across polar boundary
 constexpr const bool flip_across_pole_field[] = {false, true, true};
 

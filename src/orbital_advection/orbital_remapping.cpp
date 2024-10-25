@@ -22,6 +22,7 @@
 #include "../coordinates/coordinates.hpp"
 #include "../field/field.hpp"
 #include "../hydro/hydro.hpp"
+#include "../dustfluids/dustfluids.hpp"
 #include "../mesh/mesh.hpp"
 
 // this class header

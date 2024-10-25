@@ -245,6 +245,17 @@ Reconstruction::Reconstruction(MeshBlock *pmb, ParameterInput *pin) :
   scr3_in_.NewAthenaArray(nvar_, nc1);
   scr4_in_.NewAthenaArray(nvar_, nc1);
 
+  if (NDUSTFLUIDS > 0) {
+    scr01_i_df_.NewAthenaArray(nc1);
+    scr02_i_df_.NewAthenaArray(nc1);
+
+    scr1_ni_df_.NewAthenaArray(NDUSTVARS, nc1);
+    scr2_ni_df_.NewAthenaArray(NDUSTVARS, nc1);
+    scr3_ni_df_.NewAthenaArray(NDUSTVARS, nc1);
+    scr4_ni_df_.NewAthenaArray(NDUSTVARS, nc1);
+  }
+
+
   // temporary array for reconstruction in angular space
   scr1_nn_.NewAthenaArray(nvar_+2*NGHOST,nvar_+2*NGHOST);
   scr2_nn_.NewAthenaArray(nvar_+2*NGHOST,nvar_+2*NGHOST);
@@ -264,6 +275,16 @@ Reconstruction::Reconstruction(MeshBlock *pmb, ParameterInput *pin) :
   if (CR_ENABLED) {
     int cr_order=pin->GetOrAddInteger("time", "cr_xorder", 2);
     order_flag = std::max(cr_order,order_flag);
+  }
+
+  if (NDUSTFLUIDS > 0) {
+    scr01_i_df_.NewAthenaArray(nc1);
+    scr02_i_df_.NewAthenaArray(nc1);
+
+    scr1_ni_df_.NewAthenaArray(NDUSTVARS, nc1);
+    scr2_ni_df_.NewAthenaArray(NDUSTVARS, nc1);
+    scr3_ni_df_.NewAthenaArray(NDUSTVARS, nc1);
+    scr4_ni_df_.NewAthenaArray(NDUSTVARS, nc1);
   }
 
   if ((order_flag == 3) || (order_flag == 4)) {
@@ -290,6 +311,27 @@ Reconstruction::Reconstruction(MeshBlock *pmb, ParameterInput *pin) :
     scr6_in_.NewAthenaArray(nvar_, nc1);
     scr7_in_.NewAthenaArray(nvar_, nc1);
     scr8_in_.NewAthenaArray(nvar_, nc1);
+
+    if (NDUSTFLUIDS > 0) {
+      scr03_i_df_.NewAthenaArray(nc1);
+      scr04_i_df_.NewAthenaArray(nc1);
+      scr05_i_df_.NewAthenaArray(nc1);
+      scr06_i_df_.NewAthenaArray(nc1);
+      scr07_i_df_.NewAthenaArray(nc1);
+      scr08_i_df_.NewAthenaArray(nc1);
+      scr09_i_df_.NewAthenaArray(nc1);
+      scr10_i_df_.NewAthenaArray(nc1);
+      scr11_i_df_.NewAthenaArray(nc1);
+      scr12_i_df_.NewAthenaArray(nc1);
+      scr13_i_df_.NewAthenaArray(nc1);
+      scr14_i_df_.NewAthenaArray(nc1);
+
+      scr5_ni_df_.NewAthenaArray(NDUSTVARS, nc1);
+      scr6_ni_df_.NewAthenaArray(NDUSTVARS, nc1);
+      scr7_ni_df_.NewAthenaArray(NDUSTVARS, nc1);
+      scr8_ni_df_.NewAthenaArray(NDUSTVARS, nc1);
+    }
+
 
     // Precompute PPM coefficients in x1-direction ---------------------------------------
     c1i.NewAthenaArray(nc1);
