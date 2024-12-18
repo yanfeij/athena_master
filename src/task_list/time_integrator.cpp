@@ -2179,7 +2179,8 @@ TaskStatus TimeIntegratorTaskList::AddSourceTerms(MeshBlock *pmb, int stage) {
       || pmb->pmy_mesh->fluid_setup != FluidFormulation::evolve) {
     if (stage <= nstages) {
       if (stage_wghts[stage-1].main_stage) {
-        ph->u_af_src=ph->u;
+        if(NDUSTFLUIDS > 0)
+          ph->u_af_src=ph->u;
       }
     }
 
