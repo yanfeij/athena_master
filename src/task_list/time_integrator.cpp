@@ -2196,7 +2196,8 @@ TaskStatus TimeIntegratorTaskList::AddSourceTerms(MeshBlock *pmb, int stage) {
       // Evaluate the source terms at the time at the beginning of the stage
       ph->hsrc.AddSourceTerms(t_start_stage, dt, ph->flux, ph->w, pdf->df_prim,
                           ps->r, pf->bcc, ph->u, pdf->df_cons, ps->s);
-      ph->u_af_src = ph->u;
+      if(NDUSTFLUIDS > 0)
+        ph->u_af_src = ph->u;
     }
     return TaskStatus::next;
   }
