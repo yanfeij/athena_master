@@ -1030,15 +1030,13 @@ TimeIntegratorTaskList::TimeIntegratorTaskList(ParameterInput *pin, Mesh *pm) {
           AddTask(SEND_SCLRFLXSH,RECV_SCLRFLX);
           AddTask(RECV_SCLRFLXSH,(SEND_SCLRFLX|RECV_SCLRFLX));
           AddTask(INT_SCLR,RECV_SCLRFLXSH);
-          AddTask(SRC_TERM,(INT_HYD|INT_SCLR));
         } else {
           AddTask(INT_SCLR,RECV_SCLRFLX);
-          AddTask(SRC_TERM,(INT_HYD|INT_SCLR));
         }
       } else {
         AddTask(INT_SCLR,CALC_SCLRFLX);
-        AddTask(SRC_TERM,(INT_HYD|INT_SCLR));
       }
+      AddTask(SRC_TERM,(INT_HYD|INT_SCLR));
     } else {
       AddTask(SRC_TERM,INT_HYD);
     }
@@ -1150,19 +1148,6 @@ TimeIntegratorTaskList::TimeIntegratorTaskList(ParameterInput *pin, Mesh *pm) {
     }
 
     if (NSCALARS > 0) {
-      if (pm->multilevel || SHEAR_PERIODIC) {
-        AddTask(SEND_SCLRFLX,CALC_SCLRFLX);
-        AddTask(RECV_SCLRFLX,CALC_SCLRFLX);
-        if (SHEAR_PERIODIC) {
-          AddTask(SEND_SCLRFLXSH,RECV_SCLRFLX);
-          AddTask(RECV_SCLRFLXSH,(SEND_SCLRFLX|RECV_SCLRFLX));
-          AddTask(INT_SCLR,RECV_SCLRFLXSH);
-        } else {
-          AddTask(INT_SCLR,RECV_SCLRFLX);
-        }
-      } else {
-        AddTask(INT_SCLR,CALC_SCLRFLX);
-      }
       if (ORBITAL_ADVECTION) {
         AddTask(SEND_SCLR,CALC_HYDORB);
         AddTask(RECV_SCLR,NONE);
