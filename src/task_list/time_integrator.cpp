@@ -2089,7 +2089,7 @@ TaskStatus TimeIntegratorTaskList::IntegrateHydro(MeshBlock *pmb, int stage) {
       const Real wght = stage_wghts[stage-1].beta*pmb->pmy_mesh->dt;
       ph->AddFluxDivergence(wght, ph->u);
       // add coordinate (geometric) source terms
-      pmb->pcoord->AddCoordTermsDivergence(wght, ph->flux, ph->w, pf->bcc, ph->u);
+//      pmb->pcoord->AddCoordTermsDivergence(wght, ph->flux, ph->w, pf->bcc, ph->u);
 
       // Hardcode an additional flux divergence weighted average for the penultimate
       // stage of SSPRK(5,4) since it cannot be expressed in a 3S* framework

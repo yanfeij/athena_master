@@ -84,12 +84,12 @@ void Hydro::AddFluxDivergence(const Real wght, AthenaArray<Real> &u_out) {
 
       // update conserved variables
       pmb->pcoord->CellVolume(k, j, is, ie, vol);
-      for (int n=0; n<NHYDRO; ++n) {
+ //     for (int n=0; n<NHYDRO; ++n) {
 #pragma omp simd
         for (int i=is; i<=ie; ++i) {
-          u_out(n,k,j,i) -= wght*dflx(n,i)/vol(i);
+          u_out(NHYDRO-1,k,j,i) -= wght*dflx(NHYDRO-1,i)/vol(i);
         }
-      }
+  //    }
     }
   }
   return;
