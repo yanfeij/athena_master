@@ -211,10 +211,20 @@ void RadIntegrator::CalSourceTerms(MeshBlock *pmb, const Real dt,
           bool success = InverseMapFrequency(tran_coef(n), map_count_,
                                           fre_map_matrix_, ir_ori_, ir_done_);
 
-          if (!success)
-            MapCmToLabFrequency(tran_coef(n),split_ratio, map_start, map_end,
+          if (!success) {
+            bool redo = false;
+            for (int ifr=0; ifr<nfreq; ++ifr) {
+              if (ir_done_(ifr) < TINY_NUMBER) {
+                if (std::fabs(ir_done_(ifr)) < 1.e-16)
+                  ir_done_(ifr) = TINY_NUMBER;
+                else
+                  redo = true;
+              }
+            }
+            if (redo)
+              MapCmToLabFrequency(tran_coef(n),split_ratio, map_start, map_end,
                                                         ir_ori_,ir_done_);
-
+          }
         } else {
           MapCmToLabFrequency(tran_coef(n),split_ratio, map_start, map_end,
                                                         ir_ori_,ir_done_);

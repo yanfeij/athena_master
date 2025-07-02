@@ -289,6 +289,7 @@ bool RadIntegrator::InverseMapFrequency(
     Real &tran_coef,
     AthenaArray<int> &map_count, AthenaArray<Real> &map_matrix,
     AthenaArray<Real> &input_array, AthenaArray<Real> &shift_array) {
+  bool status = true;
   int &nfreq = pmy_rad->nfreq;
   // clear zero
   shift_array.ZeroClear();
@@ -305,7 +306,7 @@ bool RadIntegrator::InverseMapFrequency(
       }
       shift_array(ifr) /= map_matrix(ifr,0);
       if (shift_array(ifr) < 0.0)
-        return false;
+        status = false;
     }
   } else {
     // map_matrix is a upper triangle,
@@ -321,10 +322,10 @@ bool RadIntegrator::InverseMapFrequency(
       }
       shift_array(ifr) /= map_matrix(ifr,0);
       if (shift_array(ifr) < 0.0)
-        return false;
+        status = false;
     }
   }
-  return true;
+  return status;
 }
 
 // fit a linear line between nu_l and nu_r for ir_l and ir_r
