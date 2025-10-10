@@ -233,7 +233,7 @@ class RadIntegrator {
   AthenaArray<Real> split_ratio_, fre_map_matrix_;
   AthenaArray<Real> delta_nu_n_; // width of frequency bins for each angle
   AthenaArray<Real> ir_buff_;
-  AthenaArray<Real> ir_face_, ir_ori_, ir_done_;
+  AthenaArray<Real> ir_face_, ir_cen_, ir_ori_, ir_done_;
   AthenaArray<int> map_bin_start_, map_bin_end_;
   AthenaArray<int> map_count_;
   AthenaArray<Real> nu_shift_;
