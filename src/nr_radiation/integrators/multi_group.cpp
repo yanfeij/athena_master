@@ -251,7 +251,8 @@ bool RadIntegrator::FreMapMatrix(AthenaArray<Real> &split_ratio,
   bool invertible = true;
   // first, check the diagonal elements are non-zero
   for (int ifr=0; ifr<nfreq; ++ifr) {
-    if (split_ratio(ifr,ifr-map_bin_start(ifr)) < TINY_NUMBER) {
+    int idx = std::abs(ifr - map_bin_start(ifr));
+    if (split_ratio(ifr,idx) < TINY_NUMBER) {
       invertible = false;
       return invertible;
     }
