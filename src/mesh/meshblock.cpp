@@ -513,10 +513,12 @@ MeshBlock::MeshBlock(int igid, int ilid, Mesh *pm, ParameterInput *pin,
             Real tr = std::pow(Er,0.25);
 
             // now split to different frequency bins
-            for (int ifr=0; ifr<pnrrad->nfreq; ++ifr) {
+            for (int ifr=0; ifr<pnrrad->nfreq-1; ++ifr) {
               fre_ratio(ifr) = pnrrad->IntPlanckFunc(pnrrad->nu_grid(ifr)/tr,
                                       pnrrad->nu_grid(ifr+1)/tr);
             }
+            fre_ratio(pnrrad->nfreq-1) = 1.0
+                  - pnrrad->FitIntPlanckFunc(pnrrad->nu_grid(pnrrad->nfreq-1)/tr);
 
             for (int ifr=0; ifr<pnrrad->nfreq; ++ifr) {
               for (int n=0; n<pnrrad->nang; ++n) {
