@@ -47,13 +47,21 @@ inline void DefaultFrequency(NRRadiation *prad) {
 // Do nothing. Keep the opacity as the initial value
 inline void DefaultEmission(NRRadiation *prad, Real tgas) {
   int &nfreq = prad->nfreq;
+  Real thigh = (1+1.e-4)*tgas;
+  Real tlow = (1-1.e-4)*tgas;
   if (nfreq > 1) {
     for(int ifr=0; ifr<nfreq-1; ++ifr) {
       prad->emission_spec(ifr) =
           prad->IntPlanckFunc(prad->nu_grid(ifr)/tgas, prad->nu_grid(ifr+1)/tgas);
+      Real emit_high =  prad->IntPlanckFunc(prad->nu_grid(ifr)/thigh, prad->nu_grid(ifr+1)/thigh);
+      Real emit_low =  prad->IntPlanckFunc(prad->nu_grid(ifr)/tlow, prad->nu_grid(ifr+1)/tlow);
+      prad->demission_dt(ifr) = (emit_high - emit_low) / (thigh-tlow);
     }
-    prad->emission_spec(nfreq-1) = 1.0 - prad->FitIntPlanckFunc(
-        prad->nu_grid(nfreq-1)/tgas);
+    Real emit_high = 1.0 - prad->FitIntPlanckFunc(prad->nu_grid(nfreq-1)/thigh);
+    Real emit_low = 1.0 - prad->FitIntPlanckFunc(prad->nu_grid(nfreq-1)/tlow);
+
+    prad->emission_spec(nfreq-1) = 1.0 - prad->FitIntPlanckFunc(prad->nu_grid(nfreq-1)/tgas);
+    prad->demission_dt(nfreq-1) = (emit_high - emit_low) / (thigh-tlow);
   }
   return;
 }

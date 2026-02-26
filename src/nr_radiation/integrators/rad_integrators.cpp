@@ -76,8 +76,8 @@ RadIntegrator::RadIntegrator(NRRadiation *prad, ParameterInput *pin) {
 
   // multi-group iteration
   // iterations < iterative_tgas_
-  iteration_tgas_  = pin->GetOrAddInteger("radiation","iterative_tgas",5);
-  iteration_compton_  = pin->GetOrAddInteger("radiation","iterative_compton",5);
+  iteration_tgas_  = pin->GetOrAddInteger("radiation","iterative_tgas",10);
+  iteration_compton_  = pin->GetOrAddInteger("radiation","iterative_compton",10);
   tgas_error_ =   pin->GetOrAddReal("radiation","gas_error",1.e-6);
   compton_error_ =   pin->GetOrAddReal("radiation","gas_error",1.e-6);
   // maximum number of bins each frequency bin will map to, default is nfreq/2

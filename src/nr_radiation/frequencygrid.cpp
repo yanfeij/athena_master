@@ -100,6 +100,7 @@ void NRRadiation::FrequencyGrid() {
     }
   }
   emission_spec.NewAthenaArray(nfreq);
+  demission_dt.NewAthenaArray(nfreq);
 
   // initialize with default emission spectrum assuming tgas=1
   if (nfreq == 1) {

@@ -95,6 +95,8 @@ class NRRadiation {
   AthenaArray<Real> nu_grid, nu_cen, delta_nu;
   // gas emission term in each frequency bin relative to a_rT^4
   AthenaArray<Real> emission_spec;
+   // derivitive for each group with respect to T
+  AthenaArray<Real> demission_dt;
   FrequencyFunc UserFrequency; // user defined frequency grid
   void EnrollFrequencyFunction(FrequencyFunc MyFrequencyFunction);
   EmissionFunc UserEmissionSpec;

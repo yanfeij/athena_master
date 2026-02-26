@@ -115,9 +115,10 @@ Real RadIntegrator::MultiGroupAbsScat(
 
   while ((count_iteration <= iteration_tgas_) && (tgas_diff > tgas_error_)) {
     coef[1] = 0.0;
-
-    // update emission spectrum
+    Real dcoef1_dt = 0.0;
+    // update emission spectrum, as we as df_nu/dT
     pmy_rad->UserEmissionSpec(pmy_rad,tgasnew);
+
 
     for (int ifr=0; ifr<nfreq; ++ifr) {
       // Real dtcsigmar = ct * sigma_a[ifr];
@@ -132,17 +133,38 @@ Real RadIntegrator::MultiGroupAbsScat(
       // No need to do this if already in thermal equilibrium
       coef[1] += prat * (dtcsigmap - dtcsigmae * suma1[ifr]/(1.0-suma3[ifr]))
                  * pmy_rad->emission_spec(ifr) * (gamma - 1.0)/rho;
+      dcoef1_dt += prat * (dtcsigmap - dtcsigmae * suma1[ifr]/(1.0-suma3[ifr]))
+                 * pmy_rad->demission_dt(ifr) * (gamma - 1.0)/rho;
     }
 
     // The polynomial is
     // coef[1] * x^4 + x + coef[0] == 0
 
     if (std::abs(coef[1]) > TINY_NUMBER) {
-      int flag = FouthPolyRoot(coef[1], coef[0], tgasnew);
-      if (flag == -1 || tgasnew != tgasnew) {
-        badcell = true;
-        tgasnew = tgas;
+
+      Real ttest = tgasnew;
+      int flag = FouthPolyRoot(coef[1], coef[0], ttest);
+      Real sol_test = coef[1] * ttest * ttest * ttest * ttest + ttest + coef[0];
+
+
+      Real tgasnew3 = tgasnew * tgasnew * tgasnew;
+      Real tgasnew4 = tgasnew * tgasnew3;
+
+      Real dfnu_dt = dcoef1_dt * tgasnew4 + 4.0 * coef[1] * tgasnew3 + 1.0;
+      Real fnueq = coef[1] * tgasnew4 + tgasnew + coef[0];
+      if (std::abs(dfnu_dt) > TINY_NUMBER) {
+        tgasnew = tgasnew -fnueq / dfnu_dt;
+      } else {
+        if (flag == -1 || tgasnew != tgasnew) {
+          badcell = true;
+          tgasnew = tgas;
+        } else {
+          tgasnew = ttest;
+        }
       }
+      Real sol_new = coef[1] * tgasnew * tgasnew * tgasnew * tgasnew + tgasnew + coef[0];
+      if (std::abs(sol_new) > std::abs(sol_test))
+        tgasnew = ttest;
     } else {
       tgasnew = -coef[0];
     }
